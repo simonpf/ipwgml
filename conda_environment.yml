@@ -1,0 +1,21 @@
+name: ipwgml
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pytorch::pytorch
+  - pytorch::pytorch-cuda=12.1
+  - pytorch::torchvision
+  - pytorch::torchaudio
+  - cfgrib
+  - netcdf4
+  - pyyaml
+  - pooch
+  - xarray
+  - matplotlib
+  - cartopy
+  - llvm-openmp
+  - lightning

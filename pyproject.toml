@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"  # If not defined, then legacy behavior can happen.
+
+
+[project]
+# This is the name of your project. The first time you publish this
+# package, this name will be registered for you. It will determine how
+# users can install this project, e.g.:
+#
+# $ pip install sampleproject
+#
+# And where it will live on PyPI: https://pypi.org/project/sampleproject/
+#
+# There are some restrictions on what makes a valid project name
+# specification here:
+# https://packaging.python.org/specifications/core-metadata/#name
+name = "ipwgml"
+version = "0.1"  # REQUIRED, although can be dynamic
+description = "A machine-learning benchmark dataset for satellite-based precipitation retrievals"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {file = "LICENSE.txt"}
+keywords = ["machine-learning", "benchmark", "dataset", "meteorology", "geophyisics"]
+authors = [
+  {name = "Simon Pfreundschuh", email = "simon.pfreundschuh@colostate.edu" }
+]
+maintainers = [
+  {name = "Simon Pfreundschuh", email = "simon.pfreundschuh@colostate.edu" }
+]
+dependencies = [
+  "requests-cache",
+  "jupyter-book"
+]
+
+[project.optional-dependencies]
+test = ["pytest"]
+[project.urls]
+"Source" = "https://github.com/simonpf/ipwgml/"
+"Docs" = "ipwgml.readthedocs.io"
+
+# The following would provide a command line executable called `sample`
+# which executes the function `main` from this package when invoked.
+[project.scripts]
+ipwgml = "ipwgml.cli:ipwgml"
