@@ -24,7 +24,7 @@ jobs:
     - name: Install dependencies
       run: |
         pip install pytest pytest-cov
-        pip install -e .
+        pip install -e .[test]
     - name: Run tests with pytest
       run: |
         python -m pytest --cov=pytorch_retrieve tests/ --durations=0

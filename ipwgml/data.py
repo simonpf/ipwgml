@@ -83,6 +83,8 @@ def download_files(
     pool = ThreadPoolExecutor(max_workers=n_threads)
     ctr = 0
 
+    failed = []
+
     while ctr < retries and len(files) > 0:
 
         tasks = []
@@ -92,7 +94,7 @@ def download_files(
             path =  "/".join(path)
             output_path = destination / path
             output_path.mkdir(parents=True, exist_ok=True)
-            url = base_url + "/" + str(path)
+            url = base_url + "/" + str(path) + "/" + fname
             tasks.append(pool.submit(download_file, url, output_path / fname))
 
         for path, task in zip(files, tasks):

@@ -19,16 +19,18 @@ def test_download_files_spr_gmi_gridded_spatial_train(spr_gmi_gridded_spatial_tr
     """
     Ensure that fixture successfully downloaded files.
     """
-    pmw_files = list((spr_gmi_gridded_spatial_train / "pmw").glob("*.nc"))
+    ds_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "gridded" / "spatial" / "train"
+    pmw_files = list((ds_path / "pmw").glob("*.nc"))
     assert len(pmw_files) == 2
-    ancillary_files = list((spr_gmi_gridded_spatial_train / "ancillary").glob("*.nc"))
+    ancillary_files = list((ds_path / "ancillary").glob("*.nc"))
     assert len(ancillary_files) == 2
-    target_files = list((spr_gmi_gridded_spatial_train / "target").glob("*.nc"))
+    target_files = list((ds_path / "target").glob("*.nc"))
     assert len(target_files) == 2
 
-def test_download_files_spr_gmi_gridded_tabular_train(spr_gmi_gridded_tabular_train):
+def test_download_files_spr_gmi_native_tabular_train(spr_gmi_native_tabular_train):
     """
     Ensure that fixture successfully downloaded files.
     """
-    files = list((spr_gmi_gridded_tabular_train).glob("*.nc"))
-    assert len(files) == 3
+    ds_path = spr_gmi_native_tabular_train / "spr" / "gmi" / "native" / "tabular" / "train"
+    files = list((ds_path / "pmw").glob("*.nc"))
+    assert len(files) == 1
