@@ -1,7 +1,7 @@
 """
 Tests for the ipwgml.pytorch.data module.
 """
-from ipwgml.pytorch.data import SPRTabular, SPRSpatial
+from ipwgml.pytorch.datasets import SPRTabular, SPRSpatial
 
 
 def test_dataset_spr_tabular(spr_gmi_native_tabular_train):

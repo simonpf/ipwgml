@@ -21,11 +21,11 @@ def test_download_files_spr_gmi_gridded_spatial_train(spr_gmi_gridded_spatial_tr
     """
     ds_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "gridded" / "spatial" / "train"
     pmw_files = list((ds_path / "pmw").glob("*.nc"))
-    assert len(pmw_files) == 2
+    assert len(pmw_files) == 4
     ancillary_files = list((ds_path / "ancillary").glob("*.nc"))
-    assert len(ancillary_files) == 2
+    assert len(ancillary_files) == 4
     target_files = list((ds_path / "target").glob("*.nc"))
-    assert len(target_files) == 2
+    assert len(target_files) == 4
 
 def test_download_files_spr_gmi_native_tabular_train(spr_gmi_native_tabular_train):
     """
