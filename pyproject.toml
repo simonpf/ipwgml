@@ -36,6 +36,7 @@ dependencies = [
   "requests-cache",
   "rich",
   "seaborn",
+  "toml",
 ]
 
 [project.optional-dependencies]
