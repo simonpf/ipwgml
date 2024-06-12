@@ -29,8 +29,10 @@ maintainers = [
   {name = "Simon Pfreundschuh", email = "simon.pfreundschuh@colostate.edu" }
 ]
 dependencies = [
+  "seaborn",
   "requests-cache",
-  "jupyter-book"
+  "jupyter-book",
+  "ipywidgets"
 ]
 
 [project.optional-dependencies]
@@ -40,7 +42,5 @@ test = ["pytest", "torch", "xarray[complete]"]
 "Source" = "https://github.com/simonpf/ipwgml/"
 "Docs" = "ipwgml.readthedocs.io"
 
-# The following would provide a command line executable called `sample`
-# which executes the function `main` from this package when invoked.
 [project.scripts]
 ipwgml = "ipwgml.cli:ipwgml"

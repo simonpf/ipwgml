@@ -39,6 +39,7 @@ def list_files(relative_path: str, base_url: Optional[str] = None) -> List[str]:
         base_url = BASE_URL
     url = base_url + "/" + relative_path
     session = CachedSession()
+    session.cache.clear()
     resp = session.get(url)
     resp.raise_for_status()
     text = resp.text

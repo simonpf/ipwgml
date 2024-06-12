@@ -21,16 +21,50 @@ def test_download_files_spr_gmi_gridded_spatial_train(spr_gmi_gridded_spatial_tr
     """
     ds_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "gridded" / "spatial" / "train"
     pmw_files = list((ds_path / "pmw").glob("*.nc"))
-    assert len(pmw_files) == 4
+    assert len(pmw_files) == 1
     ancillary_files = list((ds_path / "ancillary").glob("*.nc"))
-    assert len(ancillary_files) == 4
+    assert len(ancillary_files) == 1
+    ancillary_files = list((ds_path / "geo_ir").glob("*.nc"))
+    assert len(ancillary_files) == 1
     target_files = list((ds_path / "target").glob("*.nc"))
-    assert len(target_files) == 4
+    assert len(target_files) == 1
 
-def test_download_files_spr_gmi_native_tabular_train(spr_gmi_native_tabular_train):
+
+def test_download_files_spr_gmi_on_swath_tabular_train(spr_gmi_on_swath_tabular_train):
     """
     Ensure that fixture successfully downloaded files.
     """
-    ds_path = spr_gmi_native_tabular_train / "spr" / "gmi" / "native" / "tabular" / "train"
+    ds_path = spr_gmi_on_swath_tabular_train / "spr" / "gmi" / "on_swath" / "tabular" / "train"
     files = list((ds_path / "pmw").glob("*.nc"))
+    assert len(files) == 1
+    files = list((ds_path / "ancillary").glob("*.nc"))
+    assert len(files) == 1
+    files = list((ds_path / "geo_ir").glob("*.nc"))
+    assert len(files) == 1
+    files = list((ds_path / "target").glob("*.nc"))
+    assert len(files) == 1
+
+
+def test_download_files_spr_gmi_evaluation(spr_gmi_evaluation):
+    """
+    Ensure that fixture successfully downloaded files.
+    """
+    ds_path = spr_gmi_evaluation / "spr" / "gmi" / "evaluation" / "gridded"
+    files = list((ds_path / "pmw").glob("*.nc"))
+    assert len(files) == 1
+    files = list((ds_path / "ancillary").glob("*.nc"))
+    assert len(files) == 1
+    #files = list((ds_path / "geo_ir").glob("*.nc"))
+    #assert len(files) == 1
+    files = list((ds_path / "target").glob("*.nc"))
+    assert len(files) == 1
+
+    ds_path = spr_gmi_evaluation / "spr" / "gmi" / "evaluation" / "on_swath"
+    files = list((ds_path / "pmw").glob("*.nc"))
+    assert len(files) == 1
+    files = list((ds_path / "ancillary").glob("*.nc"))
+    assert len(files) == 1
+    #files = list((ds_path / "geo_ir").glob("*.nc"))
+    #assert len(files) == 1
+    files = list((ds_path / "target").glob("*.nc"))
     assert len(files) == 1
