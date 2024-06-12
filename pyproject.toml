@@ -29,10 +29,11 @@ maintainers = [
   {name = "Simon Pfreundschuh", email = "simon.pfreundschuh@colostate.edu" }
 ]
 dependencies = [
-  "seaborn",
-  "requests-cache",
+  "ipywidgets",
   "jupyter-book",
-  "ipywidgets"
+  "requests-cache",
+  "rich",
+  "seaborn",
 ]
 
 [project.optional-dependencies]
