@@ -29,6 +29,8 @@ maintainers = [
   {name = "Simon Pfreundschuh", email = "simon.pfreundschuh@colostate.edu" }
 ]
 dependencies = [
+  "appdirs",
+  "click",
   "ipywidgets",
   "jupyter-book",
   "requests-cache",
@@ -41,7 +43,7 @@ test = ["pytest", "torch", "xarray[complete]"]
 
 [project.urls]
 "Source" = "https://github.com/simonpf/ipwgml/"
-"Docs" = "ipwgml.readthedocs.io"
+"Docs" = "https://ipwgml.readthedocs.io"
 
 [project.scripts]
 ipwgml = "ipwgml.cli:ipwgml"
