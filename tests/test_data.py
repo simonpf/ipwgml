@@ -8,7 +8,7 @@ def test_list_files():
     """
     Tests finding files from SPR dataset and ensure that more than on file is found.
     """
-    files = list_files("spr/gmi/gridded/spatial/train/pmw")
+    files = list_files("spr/gmi/training/gridded/spatial/pmw")
     assert len(files) > 0
     parts = files[0].split(".")
     assert len(parts) == 2
@@ -19,22 +19,22 @@ def test_download_files_spr_gmi_gridded_spatial_train(spr_gmi_gridded_spatial_tr
     """
     Ensure that fixture successfully downloaded files.
     """
-    ds_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "gridded" / "spatial" / "train"
+    ds_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial"
     pmw_files = list((ds_path / "pmw").glob("*.nc"))
-    assert len(pmw_files) == 1
+    assert len(pmw_files) == 2
     ancillary_files = list((ds_path / "ancillary").glob("*.nc"))
-    assert len(ancillary_files) == 1
+    assert len(ancillary_files) == 2
     ancillary_files = list((ds_path / "geo_ir").glob("*.nc"))
-    assert len(ancillary_files) == 1
+    assert len(ancillary_files) == 2
     target_files = list((ds_path / "target").glob("*.nc"))
-    assert len(target_files) == 1
+    assert len(target_files) == 2
 
 
 def test_download_files_spr_gmi_on_swath_tabular_train(spr_gmi_on_swath_tabular_train):
     """
     Ensure that fixture successfully downloaded files.
     """
-    ds_path = spr_gmi_on_swath_tabular_train / "spr" / "gmi" / "on_swath" / "tabular" / "train"
+    ds_path = spr_gmi_on_swath_tabular_train / "spr" / "gmi" / "training" / "on_swath" / "tabular"
     files = list((ds_path / "pmw").glob("*.nc"))
     assert len(files) == 1
     files = list((ds_path / "ancillary").glob("*.nc"))

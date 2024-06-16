@@ -49,11 +49,13 @@ class TargetConfig:
 
             valid = np.ones_like(target, dtype=bool)
 
+            # Allow for numerical inaccuracies to avoid noisy masks for min_rqi = 1.0.
             rqi = data["radar_quality_index"].data
-            valid *= self.min_rqi <= rqi
+            valid *= (rqi - self.min_rqi) > -1e-3
 
+            # Allow for numerical inaccuracies to avoid noisy masks for min_valid_fraction = 1.0.
             valid_frac = data["valid_fraction"].data
-            valid *= self.min_valid_fraction <= valid_frac
+            valid *= (valid_frac - self.min_valid_fraction > -1e-3)
 
             if self.no_snow:
                 snow_frac = data["snow_fraction"].data

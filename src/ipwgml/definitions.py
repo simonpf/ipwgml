@@ -32,3 +32,13 @@ ALL_INPUTS = [
     "geo_ir",
     "ancillary"
 ]
+
+SENSORS = ["gmi"]
+GEOMETRIES = ["gridded", "on_swath"]
+SPLITS = [
+    "training",
+    "validation",
+    "testing",
+    "evaluation"
+]
+FORMATS = ["spatial", "tabular"]

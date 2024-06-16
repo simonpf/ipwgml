@@ -16,11 +16,11 @@ def spr_gmi_gridded_spatial_train(tmp_path_factory):
     gridded geometry.
     """
     dest = tmp_path_factory.mktemp("ipwgml")
-    download_missing("spr/gmi/gridded/spatial/train/pmw", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/gridded/spatial/train/ancillary", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/gridded/spatial/train/target", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/gridded/spatial/train/geo_ir", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/gridded/spatial/train/geo", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/gridded/spatial/pmw", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/gridded/spatial/ancillary", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/gridded/spatial/target", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/gridded/spatial/geo_ir", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/gridded/spatial/geo", dest, base_url=TEST_URL)
     return dest
 
 
@@ -31,11 +31,11 @@ def spr_gmi_on_swath_tabular_train(tmp_path_factory):
     on_swath geometry.
     """
     dest = tmp_path_factory.mktemp("ipwgml")
-    download_missing("spr/gmi/on_swath/tabular/train/pmw", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/on_swath/tabular/train/ancillary", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/on_swath/tabular/train/target", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/on_swath/tabular/train/geo_ir", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/on_swath/tabular/train/geo", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/on_swath/tabular/pmw", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/on_swath/tabular/ancillary", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/on_swath/tabular/target", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/on_swath/tabular/geo_ir", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/on_swath/tabular/geo", dest, base_url=TEST_URL)
     return dest
 
 

@@ -98,8 +98,8 @@ def test_load_input_data(spr_gmi_evaluation):
         retrieval_input=[PMW(), Ancillary()],
         geometry="on_swath"
     )
-    assert "scans" in input_data.dims
-    assert "pixels" in input_data.dims
+    assert "scan" in input_data.dims
+    assert "pixel" in input_data.dims
     assert "obs_pmw" in input_data
     assert "eia_pmw" in input_data
     assert "latitude" in input_data
@@ -259,20 +259,20 @@ def test_process_tiled(input_data_fixture, request):
     )
 
     for inpt in inputs:
-        if "scans" in inpt.dims:
-            assert inpt.scans.size == 64
-        if "pixels" in inpt.dims:
-            assert inpt.pixels.size == 64
+        if "scan" in inpt.dims:
+            assert inpt.scan.size == 64
+        if "pixel" in inpt.dims:
+            assert inpt.pixel.size == 64
         if "latitude" in inpt.dims:
             assert inpt.latitude.size == 64
         if "longitude" in inpt.dims:
             assert inpt.sizes["longitude"] == 64
         assert "batch" not in inpt.dims
 
-    if "scans" in input_data.dims:
-        assert input_data.scans.size == results.scans.size
-    if "pixels" in input_data.dims:
-        assert input_data.pixels.size == results.pixels.size
+    if "scan" in input_data.dims:
+        assert input_data.scan.size == results.scan.size
+    if "pixel" in input_data.dims:
+        assert input_data.pixel.size == results.pixel.size
     if "latitude" in input_data.dims:
         assert input_data.latitude.size == results.latitude.size
     if "longitude" in input_data.dims:
@@ -313,20 +313,20 @@ def test_process_untiled(input_data_fixture, request):
     assert len(inputs) == 1
 
     for inpt in inputs:
-        if "scans" in inpt.dims:
-            assert inpt.scans.size == input_data.scans.size
-        if "pixels" in inpt.dims:
-            assert inpt.pixels.size == input_data.pixels.size
+        if "scan" in inpt.dims:
+            assert inpt.scan.size == input_data.scan.size
+        if "pixel" in inpt.dims:
+            assert inpt.pixel.size == input_data.pixel.size
         if "latitude" in inpt.dims:
             assert inpt.latitude.size == input_data.latitude.size
         if "longitude" in inpt.dims:
             assert inpt.longitude.size == input_data.longitude.size
         assert "batch" not in inpt.dims
 
-    if "scans" in input_data.dims:
-        assert input_data.scans.size == results.scans.size
-    if "pixels" in input_data.dims:
-        assert input_data.pixels.size == results.pixels.size
+    if "scan" in input_data.dims:
+        assert input_data.scan.size == results.scan.size
+    if "pixel" in input_data.dims:
+        assert input_data.pixel.size == results.pixel.size
     if "latitude" in input_data.dims:
         assert input_data.latitude.size == results.latitude.size
     if "longitude" in input_data.dims:
@@ -367,20 +367,20 @@ def test_process_tiled_batched(input_data_fixture, request):
     )
 
     for inpt in inputs:
-        if "scans" in inpt.dims:
-            assert inpt.scans.size == 64
-        if "pixels" in inpt.dims:
-            assert inpt.pixels.size == 64
+        if "scan" in inpt.dims:
+            assert inpt.scan.size == 64
+        if "pixel" in inpt.dims:
+            assert inpt.pixel.size == 64
         if "latitude" in inpt.dims:
             assert inpt.latitude.size == 64
         if "longitude" in inpt.dims:
             assert inpt.longitude.size == 64
         assert "batch" in inpt.dims
 
-    if "scans" in input_data.dims:
-        assert input_data.scans.size == results.scans.size
-    if "pixels" in input_data.dims:
-        assert input_data.pixels.size == results.pixels.size
+    if "scan" in input_data.dims:
+        assert input_data.scan.size == results.scan.size
+    if "pixel" in input_data.dims:
+        assert input_data.pixel.size == results.pixel.size
     if "latitude" in input_data.dims:
         assert input_data.latitude.size == results.latitude.size
     if "longitude" in input_data.dims:
@@ -421,20 +421,20 @@ def test_process_tiled_batched(input_data_fixture, request):
     )
 
     for inpt in inputs:
-        if "scans" in inpt.dims:
-            assert inpt.scans.size == 64
-        if "pixels" in inpt.dims:
-            assert inpt.pixels.size == 64
+        if "scan" in inpt.dims:
+            assert inpt.scan.size == 64
+        if "pixel" in inpt.dims:
+            assert inpt.pixel.size == 64
         if "latitude" in inpt.dims:
             assert inpt.sizes["latitude"] == 64
         if "longitude" in inpt.dims:
             assert inpt.sizes["longitude"] == 64
         assert "batch" in inpt.dims
 
-    if "scans" in input_data.dims:
-        assert input_data.scans.size == results.scans.size
-    if "pixels" in input_data.dims:
-        assert input_data.pixels.size == results.pixels.size
+    if "scan" in input_data.dims:
+        assert input_data.scan.size == results.scan.size
+    if "pixel" in input_data.dims:
+        assert input_data.pixel.size == results.pixel.size
     if "latitude" in input_data.dims:
         assert input_data.latitude.size == results.latitude.size
     if "longitude" in input_data.dims:
@@ -472,10 +472,10 @@ def test_process_tabular(input_data_fixture, request):
     for inpt in inputs[:-1]:
         assert inpt.samples.size == 256
 
-    if "scans" in input_data.dims:
-        assert input_data.scans.size == results.scans.size
-    if "pixels" in input_data.dims:
-        assert input_data.pixels.size == results.pixels.size
+    if "scan" in input_data.dims:
+        assert input_data.scan.size == results.scan.size
+    if "pixel" in input_data.dims:
+        assert input_data.pixel.size == results.pixel.size
     if "latitude" in input_data.dims:
         assert input_data.latitude.size == results.latitude.size
     if "longitude" in input_data.dims:
@@ -588,7 +588,8 @@ def test_evaluate(geometry, spr_gmi_evaluation, tmp_path):
 
 
     evaluator.evaluate(
-        None, None, None, retrieval_fn, "spatial",
+        retrieval_fn=retrieval_fn,
+        input_data_format="spatial",
         n_processes=2,
         output_path=tmp_path
     )

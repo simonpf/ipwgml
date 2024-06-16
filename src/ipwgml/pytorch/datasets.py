@@ -6,6 +6,7 @@ Define pytorch dataset classes for loading the IPWG ML benchmark data.
 """
 from datetime import datetime
 from math import ceil
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -14,10 +15,12 @@ import torch
 from torch.utils.data import Dataset
 import xarray as xr
 
-from ipwgml.input import InputConfig, parse_retrieval_inputs
-from ipwgml.target import TargetConfig
 from ipwgml.definitions import ALL_INPUTS
 from ipwgml.data import download_missing
+from ipwgml import config
+from ipwgml.input import InputConfig, parse_retrieval_inputs
+from ipwgml.target import TargetConfig
+
 
 
 class SPRTabular(Dataset):
@@ -73,9 +76,9 @@ class SPRTabular(Dataset):
             )
         self.geometry = geometry.lower()
 
-        if not split.lower() in ["train", "val", "test"]:
+        if not split.lower() in ["training", "validation", "testing"]:
             raise ValueError(
-                "Split must be one of ['train', 'val', 'test']"
+                "Split must be one of ['training', 'validation', 'testing']"
             )
         self.split = split
         self.batch_size = batch_size
@@ -95,15 +98,15 @@ class SPRTabular(Dataset):
         self.ancillary_data = None
         self.target_data = None
 
-        dataset = f"spr/{self.sensor}/{self.geometry}/tabular/{self.split}/"
+        dataset = f"spr/{self.sensor}/{self.split}/{self.geometry}/tabular"
         for inpt in self.retrieval_input:
             if download:
-                download_missing(dataset + inpt.name, ipwgml_path)
+                download_missing(dataset + inpt.name, ipwgml_path, progress_bar=True)
             files = list((ipwgml_path / dataset / inpt.name).glob("*.nc"))
             setattr(self, inpt.name + "_data", xr.load_dataset(files[0]))
 
         if download:
-            download_missing(dataset + "target", ipwgml_path)
+            download_missing(dataset + "target", ipwgml_path, progress_bar=True)
         files = list((ipwgml_path / dataset / "target").glob("*.nc"))
         self.target_data = xr.load_dataset(files[0])
 
@@ -205,6 +208,33 @@ def get_median_time(filename_or_path: Path | str) -> datetime:
     return median_time
 
 
+def apply(tensors: Any, transform: torch.Tensor) -> torch.Tensor:
+    """
+    Apply transformation to any container containing torch.Tensors.
+
+    Args:
+        tensors: An arbitrarily nested list, dict, or tuple containing
+            torch.Tensors.
+        transform:
+
+    Return:
+        The same containiner but with the given transformation function applied to
+        all tensors.
+    """
+    if isinstance(tensors, tuple):
+        return tuple([apply(tensor, transform) for tensor in tensors])
+    if isinstance(tensors, list):
+        return [apply(tensor, transform) for tensors in tensors]
+    if isinstance(tensors, dict):
+        return {key: apply(tensor, transform) for key, tensor in tensors.items()}
+    if isinstance(tensors, torch.Tensor):
+        return transform(tensors)
+    raise ValueError(
+        "Encountered an unsupported type %s in apply.",
+        type(tensors)
+    )
+
+
 class SPRSpatial:
     """
     Dataset class providing access to the spatial variant of the satellite precipitation retrieval
@@ -217,6 +247,7 @@ class SPRSpatial:
         split: str,
         retrieval_input: List[str | dict[str | Any] | InputConfig] = None,
         target_config: TargetConfig = None,
+        augment: bool = True,
         ipwgml_path: Optional[Path] = None,
         download: bool = True,
     ):
@@ -232,6 +263,7 @@ class SPRSpatial:
                 specified all available input data is loaded.
             target_config: An optional TargetConfig specifying quality requirements for the retrieval
                 target data to load.
+            augment: If 'True' will apply random horizontal and vertical flips to the input data.
             ipwgml_path: Path containing or to which to download the IPWGML data.
             download: If 'True', missing data will be downloaded upon dataset creation. Otherwise, only
                 locally available files will be used.
@@ -255,9 +287,9 @@ class SPRSpatial:
             )
         self.geometry = geometry.lower()
 
-        if not split.lower() in ["train", "val", "test"]:
+        if not split.lower() in ["training", "validation", "testing"]:
             raise ValueError(
-                "Split must be one of ['train', 'val', 'test']"
+                "Split must be one of ['training', 'validation', 'testing']"
             )
         self.split = split
 
@@ -269,13 +301,15 @@ class SPRSpatial:
             target_config = TargetConfig()
         self.target_config = target_config
 
+        self.augment = augment
+
         self.pmw = None
         self.geo = None
         self.geo_ir = None
         self.ancillary = None
         self.target = None
 
-        dataset = f"spr/{self.sensor}/{self.geometry}/spatial/{self.split}/"
+        dataset = f"spr/{self.sensor}/{self.split}/{self.geometry}/spatial/"
         for inpt in self.retrieval_input:
             if download:
                 download_missing(dataset + inpt.name, ipwgml_path)
@@ -289,7 +323,15 @@ class SPRSpatial:
         self.target = np.array(files)
 
         self.check_consistency()
+        self.worker_init_fn(0)
 
+
+    def worker_init_fn(self, w_id: int) -> None:
+        """
+        Seeds the dataset loader's random number generator.
+        """
+        seed = int.from_bytes(os.urandom(4), "big") + w_id
+        self.rng = np.random.default_rng(seed)
 
     def check_consistency(self):
         """
@@ -332,5 +374,25 @@ class SPRSpatial:
             data = inpt.load_data(files[ind], target_time=target_time)
             for name, arr in data.items():
                 input_data[name] = torch.tensor(arr)
+
+        if self.augment:
+
+            flip_h = self.rng.random() > 0.5
+            flip_v = self.rng.random() > 0.5
+
+            def transform(tensor: torch.Tensor) -> torch.Tensor:
+                """
+                Randomly flips a tensor along its two last dimensions.
+                """
+                dims = tuple()
+                if flip_h:
+                    dims = dims + (-2,)
+                if flip_v:
+                    dims = dims + (-1,)
+                tensor = torch.flip(tensor, dims=dims)
+                return tensor
+
+            input_data = apply(input_data, transform)
+            target = apply(target, transform)
 
         return input_data, target

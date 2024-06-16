@@ -5,14 +5,27 @@ ipwgml.data
 Provides functionality to access IPWG ML datasets.
 """
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 import logging
 import multiprocessing
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 import re
 
+import click
 import requests
 from requests_cache import CachedSession
+from rich.progress import Progress
+
+from ipwgml.definitions import (
+    ALL_INPUTS,
+    FORMATS,
+    GEOMETRIES,
+    SENSORS,
+    SPLITS,
+)
+from ipwgml import config
+import ipwgml.logging
 
 
 LOGGER = logging.getLogger(__name__)
@@ -59,6 +72,18 @@ def download_file(url: str, destination: Path) -> None:
                     output.write(chunk)
 
 
+@contextmanager
+def progress_bar_or_not(progress_bar: bool) -> Progress | None:
+    """
+    Context manager for a optional progress bar.
+    """
+    if progress_bar:
+        with Progress(console=ipwgml.logging.get_console()) as progress:
+            yield progress
+    else:
+        yield None
+
+
 def download_files(
         files: List[str],
         destination: Path,
@@ -86,6 +111,14 @@ def download_files(
 
     failed = []
 
+    if progress_bar and len(files) > 0:
+        progress = Progress(console=ipwgml.logging.get_console())
+        rel_path = "/".join(next(iter(files)).split("/")[:-1])
+        bar = progress.add_task(f"Downloading files from {rel_path}:", total=len(files))
+    else:
+        progress = None
+        bar = None
+
     while ctr < retries and len(files) > 0:
 
         tasks = []
@@ -98,15 +131,25 @@ def download_files(
             url = base_url + "/" + str(path) + "/" + fname
             tasks.append(pool.submit(download_file, url, output_path / fname))
 
-        for path, task in zip(files, tasks):
-            try:
-                task.result()
-            except Exception:
-                LOGGER.exception(
-                    "Encountered an error when trying to download files %s.",
-                    path.split("/")[-1]
-                )
-                failed.append(path)
+        with progress_bar_or_not(progress_bar=progress_bar) as progress:
+            if progress is not None:
+                rel_path = "/".join(next(iter(files)).split("/")[:-1])
+                bar = progress.add_task(f"Downloading files from {rel_path}:", total=len(files))
+            else:
+                bar = None
+
+            for path, task in zip(files, tasks):
+
+                try:
+                    task.result()
+                    if progress is not None:
+                        progress.advance(bar, advance=1)
+                except Exception:
+                    LOGGER.exception(
+                        "Encountered an error when trying to download files %s.",
+                        path.split("/")[-1]
+                    )
+                    failed.append(path)
 
         ctr += 1
         files = failed
@@ -123,7 +166,8 @@ def download_missing(
         dataset: str,
         destination: Path,
         base_url: Optional[str] = None,
-):
+        progress_bar: bool = False
+) -> None:
     """
     Download missing file from dataset.
 
@@ -132,7 +176,151 @@ def download_missing(
         destination: Path pointing to the local directory containing the IPWGML data.
         base_url: If give, will overwrite the globally defined default URL.
     """
-    local_files = set((destination / dataset).glob("*.nc"))
+    local_files = set([str(path.relative_to(destination)) for path in (destination / dataset).glob("*.nc")])
     remote_files = set(list_files(dataset, base_url=base_url))
     missing = remote_files - local_files
-    download_files(missing, destination, base_url=base_url)
+    download_files(missing, destination, base_url=base_url, progress_bar=progress_bar)
+
+
+@click.command()
+@click.option("--data_path", type=str, default=None)
+@click.option("--sensors", type=str, default=None)
+@click.option("--geometries", type=str, default=None)
+@click.option("--formats", type=str, default=None)
+@click.option("--splits", type=str, default=None)
+@click.option("--inputs", type=str, default=None)
+def cli(
+        data_path: Optional[str] = None,
+        sensors: Optional[str] = None,
+        geometries: Optional[str] = None,
+        formats: Optional[str] = None,
+        splits: Optional[str] = None,
+        inputs: Optional[str] = None
+):
+    """
+    Download the SPR benchmark dataset.
+    """
+    dataset = "spr"
+
+    if data_path is None:
+        data_path = config.get_data_path()
+    else:
+        data_path = Path(data_path)
+        if not data_path.exists():
+            LOGGER.error(
+                "The provided 'data_path' does not exist."
+            )
+            return 1
+
+    if sensors is None:
+        sensors = SENSORS
+    else:
+        sensors = [sensor.strip() for sensor in sensors.split(",")]
+        for sensor in sensors:
+            if sensor not in SENSORS:
+                LOGGER.error(
+                    "The sensor '%s' is currently not supported. Currently supported sensors "
+                    f"are {SENSORS}."
+                )
+                return 1
+
+    if geometries is None:
+        geometries = GEOMETRIES
+    else:
+        geometries = [geometry.strip() for geometry in geometries.split(",")]
+        for geometry in geometries:
+            if geometry not in GEOMETRIES:
+                LOGGER.error(
+                    "The geometry '%s' is currently not supported. Currently supported geometries"
+                    f" are {GEOMETRIES}."
+                )
+                return 1
+
+    if formats is None:
+        formats = FORMATS
+    else:
+        formats = [format.strip() for format in formats.split(",")]
+        for format in formats:
+            if format not in formats:
+                LOGGER.error(
+                    "The format '%s' is currently not supported. Currently supported formats"
+                    f" are {FORMATS}."
+                )
+                return 1
+
+    if splits is None:
+        splits = SPLITS
+    else:
+        splits = [split.strip() for split in splits.split(",")]
+        for split in splits:
+            if split not in SPLITS:
+                LOGGER.error(
+                    "The split '%s' is currently not supported. Currently supported splits"
+                    f" are {SPLITS}."
+                )
+                return 1
+
+    if inputs is None:
+        inputs = ALL_INPUTS
+    else:
+        inputs = [inpt.strip() for inpt in inputs.split(",")]
+        for inpt in inputs:
+            if inpt not in ALL_INPUTS:
+                LOGGER.error(
+                    "The input '%s' is currently not supported. Currently supported inputs"
+                    f" are {ALL_INPUTS}."
+                )
+                return 1
+
+    LOGGER.info(f"Starting data download to {data_path}.")
+
+
+    for sensor in sensors:
+        for geometry in geometries:
+            for inpt in inputs + ["target"]:
+                for fmt in formats:
+                    for split in splits:
+                        if split == "evaluation":
+                            dataset = f"spr/{sensor}/{split}/{geometry}/{inpt}"
+                        else:
+                            dataset = f"spr/{sensor}/{split}/{geometry}/{fmt}/{inpt}"
+                        try:
+                            download_missing(dataset, data_path, progress_bar=True)
+                        except Exception:
+                            LOGGER.exception(
+                                f"An  error was encountered when downloading dataset '{dataset}'."
+                            )
+
+    config.set_data_path(data_path)
+
+
+def list_local_files_rec(path: Path) -> Dict[str, Any]:
+    """
+    Recursive listing of ipwgml data files.
+
+    Args:
+        path: A path pointing to a directory containing ipwgml files.
+
+    Return:
+        A dictionary containing all sub-directories
+
+    """
+    netcdf_files = sorted(list(path.glob("*.nc")))
+    if len(netcdf_files) > 0:
+        return netcdf_files
+
+    files = {}
+    for child in path.iterdir():
+        if child.is_dir():
+            files[child.name] = list_local_files_rec(child)
+    return files
+
+
+
+def list_local_files() -> Dict[str, Any]:
+    """
+    List available ipwgml files.
+    """
+    data_path = config.get_data_path()
+    files = list_local_files_rec(data_path)
+    return files

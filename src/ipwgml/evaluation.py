@@ -7,18 +7,22 @@ Provides functionality to evaluate precipitation retrievals.
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from copy import copy
 from dataclasses import dataclass
+from datetime import datetime
 import logging
+from math import trunc, ceil
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from rich.progress import Progress, track
 import numpy as np
+import pandas as pd
+from rich.progress import Progress, track
 import xarray as xr
 
 from ipwgml import config
 from ipwgml.data import download_missing
 import ipwgml.logging
 import ipwgml.metrics
+from ipwgml.plotting import cmap_precip
 from ipwgml.metrics import Metric
 from ipwgml.tiling import DatasetTiler
 from ipwgml.input import (
@@ -109,7 +113,7 @@ def load_retrieval_input_data(
         An xarray.Dataset containing all input data.
     """
     if geometry == "on_swath":
-        spatial_dims = ("scans", "pixels")
+        spatial_dims = ("scan", "pixel")
     else:
         spatial_dims = ("latitude", "longitude")
 
@@ -131,11 +135,9 @@ def load_retrieval_input_data(
             for name, arr in data.items():
                 input_data[name] = dims, arr
 
-    pmw_file = input_files.get_path("ancillary", geometry)
-    with xr.open_dataset(pmw_file) as pmw_data:
-        for name, attr in pmw_data.attrs.items():
-            if name == "gpm_input_file":
-                name = "pmw_input_file"
+    anc_file = input_files.get_path("ancillary", geometry)
+    with xr.open_dataset(anc_file) as anc_data:
+        for name, attr in anc_data.attrs.items():
             input_data.attrs[name] = attr
 
     ancillary_file = input_files.get_path("ancillary", geometry)
@@ -143,6 +145,9 @@ def load_retrieval_input_data(
     if "latitude" not in ancillary_data.dims:
         input_data["latitude"] = (spatial_dims, ancillary_data.latitude.data)
         input_data["longitude"] = (spatial_dims, ancillary_data.longitude.data)
+    else:
+        input_data["latitude"] = ancillary_data.latitude
+        input_data["longitude"] = ancillary_data.longitude
 
 
     return input_data
@@ -176,7 +181,7 @@ def process_scene_spatial(
         An xarray.Dataset containing the retrieved surface_precipitation,
         probability of precipitation, and precipitation flag.
     """
-    spatial_dims = ["latitude", "longitude", "scans", "pixels"]
+    spatial_dims = ["latitude", "longitude", "scan", "pixel"]
     spatial_dims = [dim for dim in spatial_dims if dim in input_data.dims]
     shape = tuple([input_data[dim].size for dim in spatial_dims])
 
@@ -273,7 +278,7 @@ def process_scene_tabular(
     Return:
         An xarray.Dataset containing the retrieval results.
     """
-    spatial_dims = ["latitude", "longitude", "scans", "pixels"]
+    spatial_dims = ["latitude", "longitude", "scan", "pixel"]
     spatial_dims = [dim for dim in spatial_dims if dim in input_data.dims]
     shape = tuple([input_data[dim].size for dim in spatial_dims])
 
@@ -350,7 +355,7 @@ def evaluate_scene(
         overlap: int | None,
         batch_size: int | None,
         retrieval_fn: Callable[[xr.Dataset], xr.Dataset],
-        retrieval_kind: str,
+        input_data_format: str,
         quantification_metrics: List[Metric],
         detection_metrics: List[Metric],
         probabilistic_detection_metrics: List[Metric],
@@ -376,8 +381,8 @@ def evaluate_scene(
             less samples than the batch size.
         retrieval_fn: A callback function that runs the retrieval on the
             input data.
-        retrieval_kind: A string specifying whether the retrieval was 'tabular'
-            or 'spatial'.
+        input_data_format: A string specifying whether the retrieval expects input data in
+            spatial or tabular format.
         quantification_metrics: A list containing the metrics to use to evaluate
             the quantitative precipitation estimates.
         detection_metrics: A list containing the metrics to use to evaluate
@@ -393,7 +398,7 @@ def evaluate_scene(
         geometry=geometry
     )
 
-    if retrieval_kind == "spatial":
+    if input_data_format == "spatial":
         results = process_scene_spatial(
             input_data=input_data,
             tile_size=tile_size,
@@ -418,8 +423,8 @@ def evaluate_scene(
             if "latitude" in results:
                 results = results.drop_vars(["latitude", "longitude"])
             results = results[{
-                "scans": scan_inds,
-                "pixels": pixel_inds
+                "scan": scan_inds,
+                "pixel": pixel_inds
             }]
 
         surface_precip_ref = target_config.load_data(target_data)
@@ -512,16 +517,23 @@ class Evaluator:
         self._detection_metrics = []
         self._probabilistic_detection_metrics = []
 
+
         for geometry in ["gridded", "on_swath"]:
             dataset = f"spr/{self.sensor}/evaluation/{geometry}/"
             for inpt in self.retrieval_input:
                 if download:
-                    download_missing(dataset + inpt.name, ipwgml_path)
+                    download_missing(dataset + inpt.name, ipwgml_path, progress_bar=True)
                 files = sorted(list((ipwgml_path / dataset / inpt.name).glob("*.nc")))
                 setattr(self, inpt.name + "_" + geometry, files)
 
+            if getattr(self, f"ancillary_{geometry}", None) is None:
+                if download:
+                    download_missing(dataset + "ancillary", ipwgml_path, progress_bar=True)
+                files = sorted(list((ipwgml_path / dataset / "ancillary").glob("*.nc")))
+                setattr(self, "ancillary" + "_" + geometry, files)
+
             if download:
-                download_missing(dataset + "target", ipwgml_path)
+                download_missing(dataset + "target", ipwgml_path, progress_bar=True)
             files = sorted(list((ipwgml_path / dataset / "target").glob("*.nc")))
             setattr(self, "target_" + geometry, files)
 
@@ -641,16 +653,33 @@ class Evaluator:
         return InputFiles(
             self.target_gridded[index],
             self.target_on_swath[index],
-            self.pmw_gridded[index],
-            self.pmw_on_swath[index],
-            self.ancillary_gridded[index],
-            self.ancillary_on_swath[index],
+            self.pmw_gridded[index] if hasattr(self, "pmw_gridded") else None,
+            self.pmw_on_swath[index] if hasattr(self, "pmw_on_swath") else None,
+            self.ancillary_gridded[index] if hasattr(self, "ancillary_gridded") else None,
+            self.ancillary_on_swath[index] if hasattr(self, "ancillary_on_swath") else None,
             self.geo_gridded[index] if hasattr(self, "geo_gridded") else None,
             self.geo_on_swath[index] if hasattr(self, "geo_on_swath") else None,
             self.geo_ir_gridded[index] if hasattr(self, "geo_ir_gridded") else None,
             self.geo_ir_on_swath[index] if hasattr(self, "geo_ir_on_swath") else None,
         )
 
+    def get_input_data(self, scene_index: int) -> xr.Dataset:
+        """
+        Get retrieval input data for a given scene.
+
+        Args:
+            scene_index: An integer specifying the scene for which to load the input data.
+
+        Return:
+            An xarray.Dataset containing the retrieval input data.
+        """
+        input_files = self.get_input_files(scene_index)
+        input_data = load_retrieval_input_data(
+            input_files=input_files,
+            retrieval_input=self.retrieval_input,
+            geometry=self.geometry
+        )
+        return input_data
 
     def evaluate_scene(
             self,
@@ -659,7 +688,7 @@ class Evaluator:
             overlap: int | None,
             batch_size: int | None,
             retrieval_fn: Callable[[xr.Dataset], xr.Dataset],
-            retrieval_kind: str,
+            input_data_format: str,
             quantification_metrics: List[Metric],
             detection_metrics: List[Metric],
             probabilistic_detection_metrics: List[Metric],
@@ -674,7 +703,8 @@ class Evaluator:
             overlap: The overlap to apply for the tiling.
             batch_size: Maximum batch size for tiled spatial and tabular retrievals.
             retrieval_fn: The retrieval callback function.
-            retrieval_kind: The retrieval kind: 'spatial' or 'tabular'.
+            input_data_format: Whether the retrieval expects input data in 'tabular' or 'spatial'
+                format.
             quantification_metrics: List containing the metrics to use to evalute the precipitation
                 quantification results.
             detection_metrics: List containing the metrics to use to evaluate the precipitation
@@ -692,7 +722,7 @@ class Evaluator:
             overlap=overlap,
             batch_size=batch_size,
             retrieval_fn=retrieval_fn,
-            retrieval_kind=retrieval_kind,
+            input_data_format=input_data_format,
             quantification_metrics=quantification_metrics,
             detection_metrics=detection_metrics,
             probabilistic_detection_metrics=probabilistic_detection_metrics,
@@ -702,11 +732,11 @@ class Evaluator:
 
     def evaluate(
             self,
-            tile_size: int | Tuple[int, int] | None,
-            overlap: int | None,
-            batch_size: int | None,
             retrieval_fn: Callable[[xr.Dataset], xr.Dataset],
-            retrieval_kind: str,
+            tile_size: int | Tuple[int, int] | None = None,
+            overlap: int | None = None,
+            batch_size: int | None = None,
+            input_data_format: str = "spatial",
             n_processes: int | None = None,
             output_path: Optional[Path] = None
     ):
@@ -714,11 +744,11 @@ class Evaluator:
         Run evaluation on complete evaluation dataset.
 
         Args:
+            retrieval_fn: The retrieval callback function.
             tile_size: The tile size to use for the retrieval or 'None' to apply no tiling.
             overlap: The overlap to apply for the tiling.
             batch_size: Maximum batch size for tiled spatial and tabular retrievals.
-            retrieval_fn: The retrieval callback function.
-            retrieval_kind: The retrieval kind: 'spatial' or 'tabular'.
+            input_data_format: The retrieval kind: 'spatial' or 'tabular'.
             output_path: If not 'None', retrieval results will be written to that path.
         """
         quantification_metrics = self.quantification_metrics
@@ -738,7 +768,7 @@ class Evaluator:
                         overlap=overlap,
                         batch_size=batch_size,
                         retrieval_fn=retrieval_fn,
-                        retrieval_kind=retrieval_kind,
+                        input_data_format=input_data_format,
                         quantification_metrics=quantification_metrics,
                         detection_metrics=detection_metrics,
                         probabilistic_detection_metrics=probabilistic_detection_metrics,
@@ -760,7 +790,7 @@ class Evaluator:
                     overlap=overlap,
                     batch_size=batch_size,
                     retrieval_fn=retrieval_fn,
-                    retrieval_kind=retrieval_kind,
+                    input_data_format=input_data_format,
                     quantification_metrics=quantification_metrics,
                     detection_metrics=detection_metrics,
                     probabilistic_detection_metrics=probabilistic_detection_metrics,
@@ -778,3 +808,121 @@ class Evaluator:
                             f"Encountered an error when processing scene {scenes[task]}."
                         )
                     progress.update(evaluation, advance=1)
+
+
+    def plot_retrieval_results(
+            self,
+            scene_index: int,
+            retrieval_fn: Callable[[xr.Dataset], xr.Dataset],
+            input_data_format: str = "spatial",
+            tile_size: int | Tuple[int, int] | None = None,
+            overlap: int | None = None,
+            batch_size: int | None = None,
+    ) -> "plt.Figure":
+        """
+        Plot retrieval results for a given retrieval scene.
+
+        Args:
+            scene_index: An integer identifying the scene for which to plot the retrieval
+                 results.
+            retrieval_fn: The retrieval callback function.
+            input_data_format: The retrieval kind: 'spatial' or 'tabular'.
+            tile_size: The tile size to use for the retrieval or 'None' to apply no tiling.
+            overlap: The overlap to apply for the tiling.
+            batch_size: Maximum batch size for tiled spatial and tabular retrievals.
+        """
+        try:
+            from ipwgml.plotting import add_ticks
+            import cartopy.crs as ccrs
+            import matplotlib.pyplot as plt
+            from matplotlib.colors import LogNorm
+            from matplotlib.gridspec import GridSpec
+        except ImportError:
+            raise RuntimeError(
+                "This function requires matplotlib and cartopy to be installed."
+            )
+
+
+        results = self.evaluate_scene(
+            index=scene_index,
+            tile_size=tile_size,
+            overlap=overlap,
+            batch_size=batch_size,
+            retrieval_fn=retrieval_fn,
+            input_data_format=input_data_format,
+            quantification_metrics=[],
+            detection_metrics=[],
+            probabilistic_detection_metrics=[],
+        )
+
+        fname = self.target_gridded[scene_index].name
+        median_time = fname.split("_")[-1][:-3]
+        date = datetime.strptime(median_time, "%Y%m%d%H%M%S")
+
+        with xr.open_dataset(self.target_gridded[scene_index]) as target_data:
+            lons = target_data.longitude.data
+            lats = target_data.latitude.data
+            surface_precip_full = target_data.surface_precip.data
+            rqi = target_data.radar_quality_index
+
+        sp_ret = results.surface_precip.data
+        sp_ref = results.surface_precip_ref.data
+
+        lon_ticks = np.arange(trunc(lons.min() // 5) * 5.0, ceil(lons.max() // 5) * 5 + 1.0, 5.0)
+        lat_ticks = np.arange(trunc(lats.min() // 5) * 5.0, ceil(lats.max() // 5) * 5 + 1.0, 5.0)
+
+        crs = ccrs.PlateCarree()
+        fig = plt.figure(figsize=(12, 5))
+        gs = GridSpec(1, 3, width_ratios=[1.0, 1.0, 0.075])
+        norm = LogNorm(1e-1, 1e2)
+
+        mask = np.isnan(sp_ref)
+
+        ax = fig.add_subplot(gs[0, 0], projection=crs)
+        ax.pcolormesh(lons, lats, np.maximum(sp_ret, 1e-3), cmap=cmap_precip, norm=norm)
+        ax.contour(lons, lats, rqi, levels=[1e-3, 0.8], linestyles=["-", "--"], colors="grey")
+        ax.set_title("(a) Retrieved", loc="left")
+        add_ticks(ax, lon_ticks, lat_ticks, left=True, bottom=True)
+        ax.coastlines()
+
+        ax = fig.add_subplot(gs[0, 1], projection=crs)
+        m = ax.pcolormesh(lons, lats, np.maximum(surface_precip_full, 1e-3), cmap=cmap_precip, norm=norm)
+        ax.contour(lons, lats, rqi, levels=[1e-3, 0.8], linestyles=["-", "--"], colors="grey")
+        ax.set_title("(b) Reference", loc="left")
+        add_ticks(ax, lon_ticks, lat_ticks, left=False, bottom=True)
+        ax.coastlines()
+
+        fig.suptitle(date.strftime("%Y-%m-%d %H:%M:%S"))
+
+        cax = fig.add_subplot(gs[0, 2])
+        plt.colorbar(m, cax=cax, label="Surface precipitation [mm h$^{-1}$]")
+
+        return fig
+
+
+    def get_precipitation_estimation_results(
+            self,
+            name: Optional[str] = None,
+    ) -> pd.DataFrame:
+        """
+        Get scalar results from precipitation estimation metrics as pandas.Dataframe.
+
+        Args:
+             name: An optional name for the retrieval algorithm.
+        """
+        results = []
+        for metric in self.quantification_metrics:
+            res_m = metric.compute()
+            vars = [var for var in res_m.variables if res_m[var].size == 1]
+            results.append(res_m[vars])
+
+        merged = xr.merge(results)
+        if name is None:
+            name = "Retrieval"
+        results = xr.Dataset({
+            "algorithm": (("algorithm",), [name])
+        })
+        for var in merged:
+            results[var] = (("algorithm",), merged[var].data[None])
+
+        return results.to_dataframe()

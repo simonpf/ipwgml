@@ -92,6 +92,7 @@ class PMW(InputConfig):
     def name(self) -> str:
         return "pmw"
 
+
     def load_data(self, pmw_data_file: Path, target_time: xr.DataArray) -> Dict[str, np.ndarray]:
         """
         Load PMW observations from NetCDF file.
@@ -106,18 +107,69 @@ class PMW(InputConfig):
             key 'eia_pmw'.
         """
         with open_if_required(pmw_data_file) as pmw_data:
-            pmw_data = pmw_data[["observations", "earth_incidence_angle"]].transpose("channels", ...)
+            pmw_data = pmw_data[["observations", "earth_incidence_angle"]].transpose("channel", ...)
+            if self.channels is not None:
+                pmw_data = pmw_data[{"channel": self.channels}]
+            else:
+                pmw_data = pmw_data[{"channel": slice(0, None)}]
+
+        inpt_data = {
+            "obs_pmw": pmw_data["observations"].data,
+        }
+        if self.include_angles:
+            inpt_data["eia_pmw"] = pmw_data["earth_incidence_angle"].data
+
+        return inpt_data
+
+
+@dataclass
+class GMI(PMW):
+    """
+    InputData record class representing passive-microwave (PMW) observations.
+    """
+    @property
+    def name(self) -> str:
+        return "gmi"
+
+    @property
+    def input_features(self) -> int:
+        if self.channels is None:
+            n_chans = 13
+        else:
+            n_chans = len(self.channels)
+        input_features = {"obs_gmi": n_chans}
+        if self.include_channels:
+            input_features["eia_gmi"] = n_chans
+        return input_features
+
+
+    def load_data(self, pmw_data_file: Path, target_time: xr.DataArray) -> Dict[str, np.ndarray]:
+        """
+        Load PMW observations from NetCDF file.
+
+        Args:
+            pmw_data_file: A Path object pointing to the file from which to load the input data.
+            target_time: Not used.
+
+        Return:
+            A dictionary mapping the keys 'obs_pmw' the loaded PMW observations. If 'include_angles'
+            is 'True' the dictionary will also containg the earth-incidence angles with the
+            key 'eia_pmw'.
+        """
+        with open_if_required(pmw_data_file) as pmw_data:
+            pmw_data = pmw_data[["observations", "earth_incidence_angle"]].transpose("channel", ...)
             if self.channels is not None:
                 pmw_data = pmw_data[{"channels": self.channels}]
             else:
                 pmw_data - pmw_data[{"channels": slice(0, None)}]
 
         inpt_data = {
-            "obs_pmw": pmw_data["observations"].data,
-            "eia_pmw": pmw_data["earth_incidence_angle"].data
+            "obs_gmi": pmw_data["observations"].data,
         }
-        return inpt_data
+        if self.include_channels:
+            inpt_data["eia_gmi"] = pmw_data["earth_incidence_angle"].data
 
+        return inpt_data
 
 @dataclass
 class Ancillary(InputConfig):
@@ -297,3 +349,22 @@ def parse_retrieval_inputs(
         InputConfig objects.
     """
     return [InputConfig.parse(inpt) for inpt in inputs]
+
+
+def calculate_input_features(
+        inputs: List[str | Dict[str, Any] | InputConfig],
+        stacked: bool = True
+) -> int | Dict[str, int]:
+    """
+    Calculates the number of input features given a list of inputs.
+
+    Args:
+        inputs: A list specifying the retrieval input.
+        stacked: If 'True', returns a single integer representing the total number of
+            features of all inputs stacked along the channel/feature dimension. If 'False',
+            returns a dict mapping input names to the corresponding number of features.
+
+
+     
+
+    """

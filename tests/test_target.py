@@ -11,7 +11,7 @@ def test_load_load_data_spatial(spr_gmi_gridded_spatial_train):
     """
     Test loading of target data.
     """
-    target_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "gridded" / "spatial" / "train" / "target"
+    target_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "target"
     target_files = sorted(list(target_path.glob("*.nc")))
 
     target_data = xr.load_dataset(target_files[0])
@@ -26,7 +26,7 @@ def test_load_load_data_spatial(spr_gmi_gridded_spatial_train):
     )
     precip_data = target_config.load_data(target_files[0])
     valid = np.isfinite(precip_data)
-    assert target_data["radar_quality_index"].data[valid].min() >= 1.0
+    assert np.isclose(target_data["radar_quality_index"].data[valid].min(), 1.0, rtol=1e-3)
     assert (target_data["snow_fraction"].data > 0.0).any()
 
     # Test varying minimum RQI requirement
@@ -53,7 +53,7 @@ def test_load_load_data_spatial(spr_gmi_gridded_spatial_train):
     )
     precip_data = target_config.load_data(target_files[0])
     valid = np.isfinite(precip_data)
-    assert target_data["radar_quality_index"].data[valid].min() >= 1.0
+    assert np.isclose(target_data["radar_quality_index"].data[valid].min(), 1.0, rtol=1e-3)
     assert (target_data["snow_fraction"].data[valid] == 0.0).all()
 
 
@@ -61,7 +61,7 @@ def test_load_load_data_tabular(spr_gmi_on_swath_tabular_train):
     """
     Test loading of target data.
     """
-    target_path = spr_gmi_on_swath_tabular_train / "spr" / "gmi" / "on_swath" / "tabular" / "train" / "target"
+    target_path = spr_gmi_on_swath_tabular_train / "spr" / "gmi" / "training" / "on_swath" / "tabular" / "target"
     target_files = sorted(list(target_path.glob("*.nc")))
 
     target_data = xr.load_dataset(target_files[0])
@@ -76,7 +76,7 @@ def test_load_load_data_tabular(spr_gmi_on_swath_tabular_train):
     )
     precip_data = target_config.load_data(target_files[0])
     valid = np.isfinite(precip_data)
-    assert target_data["radar_quality_index"].data[valid].min() >= 1.0
+    assert np.isclose(target_data["radar_quality_index"].data[valid].min(), 1.0, rtol=1e-3)
     assert (target_data["snow_fraction"].data > 0.0).any()
 
     # Test varying minimum RQI requirement
@@ -103,5 +103,5 @@ def test_load_load_data_tabular(spr_gmi_on_swath_tabular_train):
     )
     precip_data = target_config.load_data(target_files[0])
     valid = np.isfinite(precip_data)
-    assert target_data["radar_quality_index"].data[valid].min() >= 1.0
+    assert np.isclose(target_data["radar_quality_index"].data[valid].min(), 1.0, rtol=1e-3)
     assert (target_data["snow_fraction"].data[valid] == 0.0).all()

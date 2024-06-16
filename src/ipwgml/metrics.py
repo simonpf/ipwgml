@@ -137,7 +137,7 @@ class Bias(Metric):
             bias = (self.x_sum - self.y_sum) / self.counts
 
         return xr.Dataset({
-            name: bias
+            name: bias[0]
         })
 
 
@@ -194,7 +194,7 @@ class MSE(Metric):
             name = f"{name}_mse"
 
         return xr.Dataset({
-            name: self.tot_sq_error / self.counts
+            name: (self.tot_sq_error / self.counts)[0]
         })
 
 
@@ -270,7 +270,7 @@ class CorrelationCoef(Metric):
 
         corr = (xy_mean - x_mean * y_mean) / (x_sigma * y_sigma)
         return xr.Dataset({
-            name: corr
+            name: corr[0]
         })
 
 
@@ -328,7 +328,7 @@ class SpectralCoherence(Metric):
     This metrics calculates the spectral energy and coherence between
     the retrieved and reference fields.
     """
-    def __init__(self, window_size=48, scale=0.036):
+    def __init__(self, window_size=32, scale=0.036):
         """
         Args:
             window_size: The size of the window over which the spectral

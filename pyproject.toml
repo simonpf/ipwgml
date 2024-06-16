@@ -40,7 +40,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-test = ["pytest", "torch", "xarray[complete]"]
+complete = ["pytest", "torch", "xarray[complete]"]
 
 [project.urls]
 "Source" = "https://github.com/simonpf/ipwgml/"
