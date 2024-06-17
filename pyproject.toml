@@ -37,6 +37,7 @@ dependencies = [
   "rich",
   "seaborn",
   "toml",
+  "xarray"
 ]
 
 [project.optional-dependencies]
