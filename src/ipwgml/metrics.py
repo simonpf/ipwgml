@@ -5,7 +5,7 @@ ipwgml.metrics
 Defines the metrics used to evaluate precipitation retrievals.
 """
 from multiprocessing import shared_memory, Lock, Manager
-from typing import Dict, Optional, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 import numpy as np
 from scipy.ndimage import binary_erosion
@@ -44,9 +44,9 @@ class Metric:
             array = np.ndarray(shape, dtype=dtype, buffer=shm.buf)
             array[:] = 0.0
             self._buffers[name] = (shm.name, shape, dtype)
+        self.owner = True
 
-
-    def __getattr__(self, name):
+    def __getattr__(self, name: str) -> Any:
         buffers = self.__dict__.get("_buffers", None)
         if buffers is not None:
             if name in buffers:
@@ -57,6 +57,26 @@ class Metric:
                 return np.ndarray(shape, dtype=dtype, buffer=shm.buf)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
+    #def __getstate__(self) -> Dict[str, Any]:
+    #    """
+    #    Overwrite pickling behavior so that ownership of shared-memory buffers is set to False.
+    #    """
+    #    state = self.__dict__.copy()
+    #    state["owner"] = False
+    #    return state
+
+    def cleanup(self) -> None:
+        """
+        Remove shared memory
+        """
+        if hasattr(self, "_buffers"):
+            for name, shm in self._buffers.items():
+                shm = shm[0]
+                if isinstance(shm, str):
+                    shm = shared_memory.SharedMemory(shm)
+                shm.unlink()
+
+
     def __del__(self):
         """
         Close connections to shared memory.
@@ -64,8 +84,58 @@ class Metric:
         if hasattr(self, "_buffers"):
             for name, shm in self._buffers.items():
                 shm = shm[0]
-                if not isinstance(shm, str):
-                    shm.close()
+                if isinstance(shm, str):
+                    shm = shared_memory.SharedMemory(shm)
+                shm.close()
+                if self.owner:
+                    pass
+                    #shm.unlink()
+
+
+class ValidFraction(Metric):
+    """
+    This metric tracks the number of predictions that are left out because the retrieved
+    value is NAN.
+    """
+
+    def __init__(self):
+        super().__init__(
+            buffers={
+                "invalid": ((1,), np.int64),
+                "counts": ((1,), np.int64),
+            }
+        )
+
+    def update(self, pred: np.ndarray, target: np.ndarray) -> None:
+        """
+        Update metric values with given prediction.
+
+        Args:
+             pred: An np.ndarray containing the predicted values.
+             target: An np.ndarray containing the reference values.
+        """
+        valid_pred = np.isfinite(pred)
+        valid_target = np.isfinite(target)
+
+        with self.lock:
+            self.invalid += (~valid_pred * valid_target).astype(np.int64).sum()
+            self.counts += valid_target.astype(np.int64).sum()
+
+    def compute(self, name: Optional[str] = None) -> xr.Dataset:
+        """
+        Calculate the fraction of valid retrieval samples.
+
+        Return:
+            An xarray.Dataset containing a single, scalar variable 'valid_fraction' containing the
+            fraction of valid retrievals.
+        """
+        valid_fraction = 1.0 - self.invalid / self.counts
+        valid_fraction = xr.Dataset(
+            {"valid_fraction": valid_fraction[0]}
+        )
+        valid_fraction.attrs["full_name"] = "Valid fraction"
+        valid_fraction.attrs["unit"] = ""
+        return valid_fraction
 
 
 class Bias(Metric):
@@ -83,7 +153,8 @@ class Bias(Metric):
     ):
         """
         Args:
-            relative: If True, the bias is normalized using the mean of the target.
+            relative: If True, the bias is calculated as percent of the mean reference
+                 precipitation. Else the bias is calculated as absolute value.
         """
         super().__init__(
             buffers={
@@ -94,16 +165,15 @@ class Bias(Metric):
         )
         self.relative = relative
 
-    def update(self, prediction: xr.DataArray, target: xr.DataArray) -> None:
+    def update(self, prediction: np.ndarray, target: np.ndarray) -> None:
         """
         Update metric values with given prediction.
 
         Args:
-             prediction: An xarray.DataArray containing the prediction.
-             target: An xarray.DataArray containing the reference values.
+             prediction: An np.ndarray containing the predicted values.
+             target: An np.ndarray containing the reference values.
         """
-        pred = prediction.data
-        target = target.data
+        pred = prediction
         valid = np.isfinite(target)
         pred = pred[valid]
         target = target[valid]
@@ -115,30 +185,134 @@ class Bias(Metric):
 
     def compute(self, name: Optional[str] = None) -> xr.Dataset:
         """
-        Calculate the bias for all results passed to this metric object.
-
-        Args:
-            name: If given, the variable containing the bias will be named 'bias_{name}'.
-                If not given, the variable is simply named 'bias'.
+        Calculate the MSE for all results passed to this metric object.
 
         Return:
-            An xarray.Dataset containing a single, scalar variable 'bias' or 'bias_{name}'.
-
+            An xarray.Dataset containing a single, scalar variable 'mse' containing the
+            MSE for the assessed results.
         """
-        if name is None:
-            name = "bias"
-            rel_name = ""
-        else:
-            name = f"{name}_bias"
-
         if self.relative:
-            bias = (self.x_sum - self.y_sum) / self.y_sum
+            bias = 100.0 * (self.x_sum - self.y_sum) / self.y_sum
         else:
             bias = (self.x_sum - self.y_sum) / self.counts
 
-        return xr.Dataset({
-            name: bias[0]
+        bias = xr.Dataset({"bias": bias[0]})
+        bias.bias.attrs["full_name"] = "Bias"
+        bias.bias.attrs["unit"] = "%" if self.relative else "mm h^{-1}"
+        return bias
+
+
+class MAE(Metric):
+    """
+    The mean-absolute error calculated as the mean value of the absolute value
+    of the difference between prediction and target values:
+
+    mae = mean(|pred - target|).
+
+    The mean is calculated over all results passed to the 'compute' method for
+    which the target values are finite.
+    """
+
+    def __init__(self):
+        super().__init__(
+            buffers={
+                "tot_abs_error": ((1,), np.float64),
+                "counts": ((1,), np.int64),
+            }
+        )
+
+    def update(self, prediction: np.ndarray, target: np.ndarray) -> None:
+        """
+        Update metric values with given prediction.
+
+        Args:
+             prediction: A np.ndarray containing the prediction.
+             target: An np.ndarray containing the reference values.
+        """
+        pred = prediction
+        valid = np.isfinite(target)
+        pred = pred[valid]
+        target = target[valid]
+
+        with self.lock:
+            self.tot_abs_error += np.abs(pred - target).sum()
+            self.counts += valid.sum()
+
+    def compute(self) -> xr.Dataset:
+        """
+        Calculate the MAE for all results passed to this metric object.
+
+        Return:
+            An xarray.Dataset containing a single, scalar variable 'mae' containing
+            the MAE for all assessed estimates.
+        """
+        mae = xr.Dataset({
+            "mae": (self.tot_abs_error / self.counts)[0]
         })
+        mae.mae.attrs["full_name"] = "MAE"
+        mae.mae.attrs["unit"] = "mm h^{-1}"
+        return mae
+
+
+class SMAPE(Metric):
+    """
+    The symmetric mean absolute percentage error (SMAPE).
+
+    smape = mean(|pred - target| / 0.5 * (|pred| + |target|)).
+
+    The mean is calculated over all results passed to the 'compute' method for
+    which the target values are finite and for which the absolute value of the
+    exceeds the given threshold value.
+    """
+    def __init__(self, threshold: float = 0.1):
+        """
+        Args:
+            threshold: Minimum target value for samples to be considered in the
+                calculation.
+
+        """
+        self.threshold = threshold
+        super().__init__(
+            buffers={
+                "tot_rel_error": ((1,), np.float64),
+                "counts": ((1,), np.int64),
+            }
+        )
+
+    def update(self, prediction: np.ndarray, target: np.ndarray) -> None:
+        """
+        Update metric values with given prediction.
+
+        Args:
+             prediction: A np.ndarray containing the prediction.
+             target: A np.ndarray containing the reference values.
+        """
+        pred = prediction
+        valid = np.isfinite(target) * np.abs(target) > self.threshold
+        pred = pred[valid]
+        target = target[valid]
+
+        with self.lock:
+            self.tot_rel_error += (
+                np.abs(pred - target) / (0.5 * (np.abs(pred) + np.abs(target)))
+            ).sum()
+            self.counts += valid.sum()
+
+    def compute(self) -> xr.Dataset:
+        """
+        Calculate the bias for all results passed to this metric object.
+
+        Return:
+            An xarray.Dataset containing a single, scalar variable 'smape' representing
+            the SMAPE calculated over all results passed to this metric object.
+
+        """
+        smape = xr.Dataset({
+            "smape": 100.0 * (self.tot_rel_error / self.counts)[0]
+        })
+        smape.smape.attrs["full_name"] = f"SMAPE$_{self.threshold:.2}$"
+        smape.smape.attrs["unit"] = "%"
+        return smape
 
 
 class MSE(Metric):
@@ -158,16 +332,15 @@ class MSE(Metric):
             }
         )
 
-    def update(self, prediction: xr.DataArray, target: xr.DataArray) -> None:
+    def update(self, prediction: np.ndarray, target: np.ndarray) -> None:
         """
         Update metric values with given prediction.
 
         Args:
-             prediction: An xarray.DataArray containing the prediction.
-             target: An xarray.DataArray containing the reference values.
+             prediction: An np.ndarray containing the predicted values.
+             target: An np.ndarray containing the reference values.
         """
-        pred = prediction.data
-        target = target.data
+        pred = prediction
         valid = np.isfinite(target)
         pred = pred[valid]
         target = target[valid]
@@ -176,26 +349,20 @@ class MSE(Metric):
             self.tot_sq_error += ((pred - target) ** 2).sum()
             self.counts += valid.sum()
 
-    def compute(self, name: Optional[str] = None) -> xr.Dataset:
+    def compute(self) -> xr.Dataset:
         """
         Calculate the bias for all results passed to this metric object.
 
-        Args:
-            name: If given, the variable containing the bias will be named 'bias_{name}'.
-                If not given, the variable is simply named 'bias'.
-
         Return:
-            An xarray.Dataset containing a single, scalar variable 'bias' or 'bias_{name}'.
-
+            An xarray.Dataset containing a single, scalar variable 'mse' representing
+            the MSE calculated over all results passed to this metric object.
         """
-        if name is None:
-            name = "mse"
-        else:
-            name = f"{name}_mse"
-
-        return xr.Dataset({
-            name: (self.tot_sq_error / self.counts)[0]
+        mse = xr.Dataset({
+            "mse": (self.tot_sq_error / self.counts)[0]
         })
+        mse.mse.attrs["full_name"] = "MSE"
+        mse.mse.attrs["unit"] = "(mm h^{-1})^2"
+        return mse
 
 
 class CorrelationCoef(Metric):
@@ -218,16 +385,15 @@ class CorrelationCoef(Metric):
             }
         )
 
-    def update(self, prediction: xr.DataArray, target: xr.DataArray) -> None:
+    def update(self, prediction: np.ndarray, target: np.ndarray) -> None:
         """
         Update metric values with given prediction.
 
         Args:
-             prediction: An xarray.DataArray containing the prediction.
-             target: An xarray.DataArray containing the reference values.
+             prediction: An np.ndarray containing the predicted values.
+             target: An np.ndarray containing the reference values.
         """
-        pred = prediction.data
-        target = target.data
+        pred = prediction
         valid = np.isfinite(target)
 
         pred = pred[valid]
@@ -241,23 +407,14 @@ class CorrelationCoef(Metric):
             self.xy_sum += (pred * target).sum()
             self.counts += valid.sum()
 
-    def compute(self, name: Optional[str] = None) -> xr.Dataset:
+    def compute(self) -> xr.Dataset:
         """
         Calculate the bias for all results passed to this metric object.
-
-        Args:
-            name: If given, the variable containing the bias will be named 'bias_{name}'.
-                If not given, the variable is simply named 'bias'.
 
         Return:
             An xarray.Dataset containing a single, scalar variable 'bias' or 'bias_{name}'.
 
         """
-        if name is None:
-            name = "correlation_coef"
-        else:
-            name = f"{name}_correlation_coef"
-
         x_mean = self.x_sum / self.counts
         x2_mean = self.x2_sum / self.counts
         x_sigma = np.sqrt(x2_mean - x_mean ** 2)
@@ -269,9 +426,12 @@ class CorrelationCoef(Metric):
         xy_mean = self.xy_sum / self.counts
 
         corr = (xy_mean - x_mean * y_mean) / (x_sigma * y_sigma)
-        return xr.Dataset({
-            name: corr[0]
+        corr = xr.Dataset({
+            "correlation_coef": corr
         })
+        corr.attrs["full_name"] = "Correlation coeff."
+        corr.attrs["unit"] = ""
+        return corr
 
 
 
@@ -352,17 +512,16 @@ class SpectralCoherence(Metric):
         })
 
 
-    def update(self, pred: xr.DataArray, target: xr.DataArray):
+    def update(self, pred: np.ndarray, target: np.ndarray):
         """
         Calculate spectral statistics for all valid sample windows in
         given results.
 
         Args:
-            pred: A xr.DataArray containing the predictions.
-            target: A xr.DataArray containing the reference data.
+            pred: A np.ndarray containing the predicted precipitation field.
+            target: A np.ndarray containing the reference data.
         """
-        pred = pred.data
-        target = target.data
+        pred = pred
 
         valid = np.isfinite(target)
         for rect in iterate_windows(valid, self.window_size):
@@ -371,22 +530,23 @@ class SpectralCoherence(Metric):
             target_w = target[row_start:row_end, col_start:col_end]
             w_pred = dctn(pred_w, norm="ortho")
             w_target = dctn(target_w, norm="ortho")
-            self.coeffs_target_sum += w_target
-            self.coeffs_target_sum2 += w_target * w_target
-            self.coeffs_pred_sum += w_pred
-            self.coeffs_pred_sum2 += w_pred * w_pred
-            self.coeffs_targetpred_sum += w_target * w_pred
-            self.coeffs_diff_sum += w_pred - w_target
-            self.coeffs_diff_sum2 += (w_pred - w_target) * (w_pred - w_target)
-            self.counts += np.isfinite(w_pred)
+            with self.lock:
+                self.coeffs_target_sum += w_target
+                self.coeffs_target_sum2 += w_target * w_target
+                self.coeffs_pred_sum += w_pred
+                self.coeffs_pred_sum2 += w_pred * w_pred
+                self.coeffs_targetpred_sum += w_target * w_pred
+                self.coeffs_diff_sum += w_pred - w_target
+                self.coeffs_diff_sum2 += (w_pred - w_target) * (w_pred - w_target)
+                self.counts += np.isfinite(w_pred)
 
-    def compute(self, name: Optional[str] = None):
+    def compute(self):
         """
         Calculate error statistics for correlation coefficients by scale.
 
         Return:
-            An 'xarray.Dataset' containing the finalized spectral statistics
-            derived from the statistics collected in 'results'.
+            An 'xarray.Dataset' containing the spectral coherence and efficient resolution
+            calculated using all results passed to this metric object.
         """
         corr_coeffs = []
         coherence = []
@@ -444,46 +604,40 @@ class SpectralCoherence(Metric):
         else:
             res = scales[1:][inds][resolved[0]]
 
-        return xr.Dataset({
+        results = xr.Dataset({
             "scales": (("scales",), scales),
             "spectral_coherence": (("scales"), coherence),
             "effective_resolution": res
         })
+        results.spectral_coherence.attrs["full_name"] = "Spectral coherence"
+        results.spectral_coherence.attrs["unit"] = ""
+        results.effective_resolution.attrs["full_name"] = "Effective resolution"
+        results.effective_resolution.attrs["unit"] = r"^\circ"
+        return results
 
 
 class FAR(Metric):
     """
     Metric to calculate the false alarm rate for precipitation detection.
     """
-    def __init__(self, precipitation_threshold: float = 0.0):
-        """
-        Args:
-            precipitation_threshold:
-
-        """
-        self.precipitation_threshold = precipitation_threshold
+    def __init__(self):
         super().__init__(buffers={
-            "n_positive": ((1,), np.float64),
-            "n_false_positive": ((1,), np.float64),
+            "n_positive": ((1,), np.int64),
+            "n_false_positive": ((1,), np.int64),
         })
 
 
-    def update(self, pred: xr.DataArray, target: xr.DataArray):
+    def update(self, pred: np.ndarray, target: np.ndarray):
         """
         Args:
-            pred: A xr.DataArray containing the predictions.
-            target: A xr.DataArray containing the reference data.
+            pred: A np.ndarray containing the predictions.
+            target: A np.ndarray containing the reference data.
         """
-        valid = np.isfinite(target)
-
-        pred = pred.data[valid]
-        target = target.data[valid]
-
-        true = target > self.precipitation_threshold
+        true = target
         positive = pred
-
-        self.n_false_positive += (positive * ~true)
-        self.n_positive += positive[valid]
+        with self.lock:
+            self.n_false_positive += (positive * ~true).astype(np.int64).sum()
+            self.n_positive += positive.astype(np.int64).sum()
 
 
     def compute(self, name: Optional[str] = None):
@@ -495,7 +649,7 @@ class FAR(Metric):
         far = self.n_false_positive / self.n_positive
         return xr.Dataset({
             "far": far,
-            "far_samples": self.n_positive
+            "far_samples": self.n_positive.copy()
         })
 
 
@@ -504,35 +658,24 @@ class POD(Metric):
     Metric to calculate the probability of detection (POD) for precipitation
     detection.
     """
-    def __init__(self, precipitation_threshold: float = 0.0):
-        """
-        Args:
-            precipitation_threshold:
-
-        """
-        self.precipitation_threshold = precipitation_threshold
+    def __init__(self):
         super().__init__(buffers={
-            "n_true": ((1,), np.float64),
-            "n_true_positive": ((1,), np.float64),
+            "n_true": ((1,), np.int64),
+            "n_true_positive": ((1,), np.int64),
         })
 
 
-    def update(self, pred: xr.DataArray, target: xr.DataArray):
+    def update(self, pred: np.ndarray, target: np.ndarray):
         """
         Args:
-            pred: A xr.DataArray containing the predictions.
-            target: A xr.DataArray containing the reference data.
+            pred: A np.ndarray containing the predictions.
+            target: A np.ndarray containing the reference data.
         """
-        valid = np.isfinite(target)
-
-        pred = pred.data[valid]
-        target = target.data[valid]
-
-        true = target > self.precipitation_threshold
+        true = target
         positive = pred
-
-        self.n_true_positive += (positive * true)
-        self.n_true += positive[valid]
+        with self.lock:
+            self.n_true_positive += (positive * true).astype(np.int64).sum()
+            self.n_true += true.astype(np.int64).sum()
 
 
     def compute(self, name: Optional[str] = None):
@@ -545,4 +688,115 @@ class POD(Metric):
         return xr.Dataset({
             "pod": pod,
             "pod_samples": self.n_true
+        })
+
+
+class HSS(Metric):
+    """
+    Metric to calculate the Heidke-Skill Score for precipitation detection.
+    """
+    def __init__(self):
+        super().__init__(
+            buffers={
+                "n_tp": ((1,), np.int64),
+                "n_fp": ((1,), np.int64),
+                "n_tn": ((1,), np.int64),
+                "n_fn": ((1,), np.int64),
+            }
+        )
+
+    def update(self, pred: np.ndarray, target: np.ndarray):
+        """
+        Args:
+            pred: A np.ndarray containing the predictions.
+            target: A np.ndarray containing the reference data.
+        """
+        true = target
+        positive = pred
+        with self.lock:
+            self.n_tp += (positive * true).astype(np.int64).sum()
+            self.n_fp += (positive * ~true).astype(np.int64).sum()
+            self.n_tn += (~positive * ~true).astype(np.int64).sum()
+            self.n_fn += (positive * ~true).astype(np.int64).sum()
+
+    def compute(self, name: Optional[str] = None):
+        """
+        Return:
+            An 'xarray.Dataset' containing the probability of detection for
+            the evaluated retrieval.
+        """
+        n_pos = self.n_tp + self.n_fp
+        n_true = self.n_tp + self.n_fn
+        n_neg = self.n_tn + self.n_fn
+        n_false = self.n_fp + self.n_tn
+        n_tot = n_pos + n_neg
+
+        standard = n_pos / n_tot * n_true / n_tot + n_neg / n_tot * n_false / n_tot
+        hss = ((self.n_tp + self.n_tn) / n_tot - standard) / (1.0 - standard)
+
+        return xr.Dataset({
+            "hss": hss,
+            "pod_samples": n_tot
+        })
+
+
+class PRCurve(Metric):
+    """
+    Calculates the precision recall curve for probabilistic detection results.
+    """
+    def __init__(
+            self,
+            n_bins: int = 100,
+            range: Tuple[float, float] = (0.0, 1.0),
+            logarithmic: bool = False
+    ):
+        if logarithmic:
+            self.thresholds = np.logspace(*range, n_bins)
+        else:
+            self.thresholds = np.linspace(*range, n_bins)
+        super().__init__(
+            buffers={
+                "n_tp": ((n_bins,), np.int64),
+                "n_fp": ((n_bins,), np.int64),
+                "n_t": ((1,), np.int64),
+            }
+        )
+
+    def update(self, pred: np.ndarray, target: np.ndarray):
+        """
+        Args:
+            pred: A np.ndarray containing the predicted probabilities.
+            target: A np.ndarray containing the true labels.
+        """
+        pred = pred.reshape(-1, 1)
+        target = target.reshape(-1, 1)
+        pred = pred >= self.thresholds[None]
+
+        true_positive = pred * target
+        false_positive = pred * ~target
+
+        with self.lock:
+            self.n_tp += true_positive.astype(np.int64).sum(axis=0)
+            self.n_fp += false_positive.astype(np.int64).sum(axis=0)
+            self.n_t += target.astype(np.int64).sum()
+
+    def compute(self, name: Optional[str] = None):
+        """
+        Return:
+            An 'xarray.Dataset' containing the the precision and recall values for all
+            assessed threshold values as well as the area under the PR-curve.
+        """
+        precision = self.n_tp / (self.n_tp + self.n_fp)
+        recall = self.n_tp / self.n_t
+
+        valid = (self.n_tp + self.n_fp) > 0
+
+        inds = np.argsort(recall[valid])
+        auc = np.trapz(precision[valid][inds], x=recall[valid][inds])
+
+        return xr.Dataset({
+            "threshold": (("threshold",), self.thresholds),
+            "precision": (("threshold",), precision),
+            "recall": (("threshold",), recall),
+            "area_under_curve": auc,
         })

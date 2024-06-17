@@ -437,7 +437,7 @@ def evaluate_scene(
         surface_precip_ref.data[~valid_mask] = np.nan
 
         for metric in quantification_metrics:
-            metric.update(results.surface_precip, surface_precip_ref)
+            metric.update(results.surface_precip.data, surface_precip_ref.data)
 
         aux_vars = [
             "radar_quality_index",
