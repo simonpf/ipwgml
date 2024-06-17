@@ -103,6 +103,12 @@ class SPRTabular(Dataset):
             if download:
                 download_missing(dataset + inpt.name, ipwgml_path, progress_bar=True)
             files = list((ipwgml_path / dataset / inpt.name).glob("*.nc"))
+            if len(files) == 0:
+                raise ValueError(
+                    "Couldn't find any input data files for input '%s'. Please make sure "
+                    "that the ipwgml data path is correct or set 'download' to True to "
+                    "download the file."
+                )
             setattr(self, inpt.name + "_data", xr.load_dataset(files[0]))
 
         if download:
