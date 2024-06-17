@@ -35,6 +35,7 @@ dependencies = [
   "jupyter-book",
   "requests-cache",
   "rich",
+  "scipy",
   "seaborn",
   "toml",
   "xarray"
