@@ -138,7 +138,10 @@ def load_retrieval_input_data(
     anc_file = input_files.get_path("ancillary", geometry)
     with xr.open_dataset(anc_file) as anc_data:
         for name, attr in anc_data.attrs.items():
-            input_data.attrs[name] = attr
+            if name == "pmw_input_file":
+                input_data.attrs["gpm_input_file"] = attr
+            else:
+                input_data.attrs[name] = attr
 
     ancillary_file = input_files.get_path("ancillary", geometry)
     ancillary_data = xr.load_dataset(ancillary_file)
@@ -309,8 +312,10 @@ class InputFiles:
     """
     target_file_gridded: Path
     target_file_on_swath: Path
-    pmw_file_gridded: Path
-    pmw_file_on_swath: Path
+    gmi_file_gridded: Path
+    gmi_file_on_swath: Path
+    atms_file_gridded: Path
+    atms_file_on_swath: Path
     ancillary_file_gridded: Path
     ancillary_file_on_swath: Path
     geo_ir_file_gridded: Optional[Path]
@@ -333,10 +338,10 @@ class InputFiles:
         Return:
             A Path object pointing to the input file to load or None.
         """
-        if name not in ["target", "pmw", "ancillary", "geo_ir", "geo"]:
+        if name not in ["target", "gmi", "atms", "ancillary", "geo_ir", "geo"]:
             raise ValueError(
                 "'name' must be one of the supported input datasets ('target', "
-                "'pmw', 'ancillary', 'geo_ir', 'geo')"
+                "'gmi', 'atms', 'ancillary', 'geo_ir', 'geo')"
             )
         if geometry not in ["on_swath", "gridded"]:
             raise ValueError(
@@ -456,7 +461,7 @@ def evaluate_scene(
         if output_path is not None:
             output_path = Path(output_path)
             output_path.mkdir(exist_ok=True, parents=True)
-            median_time = input_files.pmw_file_gridded.name.split("_")[1][:-3]
+            median_time = input_files.target_file_gridded.name.split("_")[1][:-3]
             results.to_netcdf(
                 output_path / f"results_{median_time}.nc"
             )
@@ -485,7 +490,7 @@ class Evaluator:
                 the regridded input observations; 'on_swath' for retrievals operating on the
                 nativ swath-based observations.
             retrieval_input: The retrieval inputs to load. Should be a subset of
-                ['pmw', 'ancillary', 'geo', 'geo_ir']
+                ['gmi', 'mhs', 'ancillary', 'geo', 'geo_ir']
             ipwgml_path: An optional path to the location of the ipgml data.
             download: A boolean flag indicating whether or not to download the evaluation files
                  if they are not found in 'ipwgml_path'.
@@ -653,8 +658,10 @@ class Evaluator:
         return InputFiles(
             self.target_gridded[index],
             self.target_on_swath[index],
-            self.pmw_gridded[index] if hasattr(self, "pmw_gridded") else None,
-            self.pmw_on_swath[index] if hasattr(self, "pmw_on_swath") else None,
+            self.gmi_gridded[index] if hasattr(self, "gmi_gridded") else None,
+            self.gmi_on_swath[index] if hasattr(self, "gmi_on_swath") else None,
+            self.atms_gridded[index] if hasattr(self, "atms_gridded") else None,
+            self.atms_on_swath[index] if hasattr(self, "atms_on_swath") else None,
             self.ancillary_gridded[index] if hasattr(self, "ancillary_gridded") else None,
             self.ancillary_on_swath[index] if hasattr(self, "ancillary_on_swath") else None,
             self.geo_gridded[index] if hasattr(self, "geo_gridded") else None,

@@ -13,15 +13,15 @@ def test_dataset_spr_tabular(spr_gmi_on_swath_tabular_train):
         sensor="gmi",
         geometry="on_swath",
         split="training",
-        retrieval_input=["pmw", "geo_ir", "ancillary"],
+        retrieval_input=["gmi", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
         download=False
     )
 
     assert len(dataset) > 0
     x, y = next(iter(dataset))
-    assert "obs_pmw" in x
-    assert x["obs_pmw"].shape == (13,)
+    assert "obs_gmi" in x
+    assert x["obs_gmi"].shape == (13,)
     assert "obs_geo_ir" in x
     assert x["obs_geo_ir"].shape == (8,)
     #assert "obs_geo" in x
@@ -40,8 +40,8 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
         sensor="gmi",
         geometry="on_swath",
         split="training",
-        #retrieval_input=["pmw", "geo", "geo_ir", "ancillary"],
-        retrieval_input=["pmw", "geo_ir", "ancillary"],
+        #retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
+        retrieval_input=["gmi", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
         download=False,
         batch_size=batch_size
@@ -50,8 +50,8 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
     assert len(dataset) > 0
     for ind, (x, y) in enumerate(dataset):
         if ind < len(dataset) - 1:
-            assert "obs_pmw" in x
-            assert x["obs_pmw"].shape == (batch_size, 13)
+            assert "obs_gmi" in x
+            assert x["obs_gmi"].shape == (batch_size, 13)
             assert x["obs_geo_ir"].shape == (batch_size, 8)
             #assert x["obs_geo"].shape == (batch_size, 64)
             assert "ancillary" in x
@@ -62,7 +62,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
         geometry="on_swath",
         split="training",
         retrieval_input=[
-            {"name": "pmw", "channels": [0, -2, -1]},
+            {"name": "gmi", "channels": [0, -2, -1]},
             #{"name": "geo", "nearest": True},
             {"name": "geo_ir", "nearest": True},
             {"name": "ancillary", "variables": ["two_meter_temperature"]}
@@ -75,8 +75,8 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
     assert len(dataset) > 0
     for ind, (x, y) in enumerate(dataset):
         if ind < len(dataset) - 1:
-            assert "obs_pmw" in x
-            assert x["obs_pmw"].shape == (batch_size, 3)
+            assert "obs_gmi" in x
+            assert x["obs_gmi"].shape == (batch_size, 3)
             assert x["obs_geo_ir"].shape == (batch_size, 1)
             #assert x["obs_geo"].shape == (batch_size, 16)
             assert "ancillary" in x
@@ -93,14 +93,14 @@ def test_dataset_spr_spatial(spr_gmi_gridded_spatial_train):
         sensor="gmi",
         geometry="gridded",
         split="training",
-        retrieval_input=["pmw", "ancillary", "geo_ir"],
+        retrieval_input=["gmi", "ancillary", "geo_ir"],
         ipwgml_path=data_path,
         download=False
     )
 
     assert len(dataset) > 0
     x, y = next(iter(dataset))
-    assert "obs_pmw" in x
-    assert x["obs_pmw"].shape == (13, 256, 256)
+    assert "obs_gmi" in x
+    assert x["obs_gmi"].shape == (13, 256, 256)
     assert "ancillary" in x
     assert y.shape == (256, 256)

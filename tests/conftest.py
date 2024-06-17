@@ -16,7 +16,7 @@ def spr_gmi_gridded_spatial_train(tmp_path_factory):
     gridded geometry.
     """
     dest = tmp_path_factory.mktemp("ipwgml")
-    download_missing("spr/gmi/training/gridded/spatial/pmw", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/gridded/spatial/gmi", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/gridded/spatial/ancillary", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/gridded/spatial/target", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/gridded/spatial/geo_ir", dest, base_url=TEST_URL)
@@ -31,7 +31,7 @@ def spr_gmi_on_swath_tabular_train(tmp_path_factory):
     on_swath geometry.
     """
     dest = tmp_path_factory.mktemp("ipwgml")
-    download_missing("spr/gmi/training/on_swath/tabular/pmw", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/training/on_swath/tabular/gmi", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/on_swath/tabular/ancillary", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/on_swath/tabular/target", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/on_swath/tabular/geo_ir", dest, base_url=TEST_URL)
@@ -45,10 +45,10 @@ def spr_gmi_evaluation(tmp_path_factory):
     Fixture to download satellite-precipitation retrieval evaluation data for GMI.
     """
     dest = tmp_path_factory.mktemp("ipwgml")
-    download_missing("spr/gmi/evaluation/gridded/pmw", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/evaluation/gridded/gmi", dest, base_url=TEST_URL)
     download_missing("spr/gmi/evaluation/gridded/ancillary", dest, base_url=TEST_URL)
     download_missing("spr/gmi/evaluation/gridded/target", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/evaluation/on_swath/pmw", dest, base_url=TEST_URL)
+    download_missing("spr/gmi/evaluation/on_swath/gmi", dest, base_url=TEST_URL)
     download_missing("spr/gmi/evaluation/on_swath/ancillary", dest, base_url=TEST_URL)
     download_missing("spr/gmi/evaluation/on_swath/target", dest, base_url=TEST_URL)
     return dest

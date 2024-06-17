@@ -16,7 +16,7 @@ from ipwgml.evaluation import (
 )
 from ipwgml.input import (
     InputConfig,
-    PMW,
+    GMI,
     Ancillary
 )
 from ipwgml.metrics import (
@@ -34,13 +34,13 @@ def test_find_files(spr_gmi_evaluation):
     evaluator = Evaluator(
         "gmi",
         "on_swath",
-        ["pmw", "ancillary"],
+        ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
         download=False
     )
 
     assert len(evaluator) == 1
-    assert evaluator.pmw_on_swath is not None
+    assert evaluator.gmi_on_swath is not None
     assert evaluator.ancillary_on_swath is not None
     assert evaluator.target_gridded is not None
     assert evaluator.target_on_swath is not None
@@ -58,13 +58,13 @@ def test_load_input_data(spr_gmi_evaluation):
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
         / "on_swath" / "target" / "target_20230701212646.nc"
     )
-    pmw_file_gridded = (
+    gmi_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "pmw" / "pmw_20230701212646.nc"
+        / "gridded" / "gmi" / "gmi_20230701212646.nc"
     )
-    pmw_file_on_swath = (
+    gmi_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "pmw" / "pmw_20230701212646.nc"
+        / "on_swath" / "gmi" / "gmi_20230701212646.nc"
     )
     ancillary_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
@@ -83,8 +83,10 @@ def test_load_input_data(spr_gmi_evaluation):
     input_files = InputFiles(
         target_file_gridded,
         target_file_on_swath,
-        pmw_file_gridded,
-        pmw_file_on_swath,
+        gmi_file_gridded,
+        gmi_file_on_swath,
+        None,
+        None,
         ancillary_file_gridded,
         ancillary_file_on_swath,
         None,
@@ -95,30 +97,30 @@ def test_load_input_data(spr_gmi_evaluation):
 
     input_data = load_retrieval_input_data(
         input_files,
-        retrieval_input=[PMW(), Ancillary()],
+        retrieval_input=[GMI(), Ancillary()],
         geometry="on_swath"
     )
     assert "scan" in input_data.dims
     assert "pixel" in input_data.dims
-    assert "obs_pmw" in input_data
-    assert "eia_pmw" in input_data
+    assert "obs_gmi" in input_data
+    assert "eia_gmi" in input_data
     assert "latitude" in input_data
     assert "longitude" in input_data
     assert "time" in input_data
 
-    assert "pmw_input_file" in input_data.attrs
+    assert "gpm_input_file" in input_data.attrs
     assert "scan_start" in input_data.attrs
     assert "scan_end" in input_data.attrs
 
     input_data = load_retrieval_input_data(
         input_files,
-        retrieval_input=[PMW(), Ancillary()],
+        retrieval_input=[GMI(), Ancillary()],
         geometry="gridded"
     )
     assert "latitude" in input_data.dims
     assert "longitude" in input_data.dims
-    assert "obs_pmw" in input_data
-    assert "eia_pmw" in input_data
+    assert "obs_gmi" in input_data
+    assert "eia_gmi" in input_data
     assert "time" in input_data
 
 
@@ -132,13 +134,13 @@ def input_data_gridded(spr_gmi_evaluation):
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
         / "on_swath" / "target" / "target_20230701212646.nc"
     )
-    pmw_file_gridded = (
+    gmi_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "pmw" / "pmw_20230701212646.nc"
+        / "gridded" / "gmi" / "gmi_20230701212646.nc"
     )
-    pmw_file_on_swath = (
+    gmi_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "pmw" / "pmw_20230701212646.nc"
+        / "on_swath" / "gmi" / "gmi_20230701212646.nc"
     )
     ancillary_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
@@ -156,8 +158,10 @@ def input_data_gridded(spr_gmi_evaluation):
     input_files = InputFiles(
         target_file_gridded,
         target_file_on_swath,
-        pmw_file_gridded,
-        pmw_file_on_swath,
+        gmi_file_gridded,
+        gmi_file_on_swath,
+        None,
+        None,
         ancillary_file_gridded,
         ancillary_file_on_swath,
         None,
@@ -168,7 +172,7 @@ def input_data_gridded(spr_gmi_evaluation):
 
     input_data = load_retrieval_input_data(
         input_files,
-        retrieval_input=[PMW(), Ancillary()],
+        retrieval_input=[GMI(), Ancillary()],
         geometry="gridded"
     )
     return input_data
@@ -184,13 +188,13 @@ def input_data_on_swath(spr_gmi_evaluation):
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
         / "on_swath" / "target" / "target_20230701212646.nc"
     )
-    pmw_file_gridded = (
+    gmi_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "pmw" / "pmw_20230701212646.nc"
+        / "gridded" / "gmi" / "gmi_20230701212646.nc"
     )
-    pmw_file_on_swath = (
+    gmi_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "pmw" / "pmw_20230701212646.nc"
+        / "on_swath" / "gmi" / "gmi_20230701212646.nc"
     )
     ancillary_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
@@ -208,8 +212,10 @@ def input_data_on_swath(spr_gmi_evaluation):
     input_files = InputFiles(
         target_file_gridded,
         target_file_on_swath,
-        pmw_file_gridded,
-        pmw_file_on_swath,
+        gmi_file_gridded,
+        gmi_file_on_swath,
+        None,
+        None,
         ancillary_file_gridded,
         ancillary_file_on_swath,
         None,
@@ -220,7 +226,7 @@ def input_data_on_swath(spr_gmi_evaluation):
 
     input_data = load_retrieval_input_data(
         input_files,
-        retrieval_input=[PMW(), Ancillary()],
+        retrieval_input=[GMI(), Ancillary()],
         geometry="on_swath"
     )
     return input_data
@@ -244,9 +250,9 @@ def test_process_tiled(input_data_fixture, request):
         Dummy retrieval function that stores all input in the 'inputs' variable.
         """
         inputs.append(input_data)
-        results = input_data[["obs_pmw"]].copy(deep=True)
-        results = results[{"channels_pmw": 0}].rename(
-            obs_pmw="surface_precip"
+        results = input_data[["obs_gmi"]].copy(deep=True)
+        results = results[{"channels_gmi": 0}].rename(
+            obs_gmi="surface_precip"
         )
         return results
 
@@ -296,9 +302,9 @@ def test_process_untiled(input_data_fixture, request):
         Dummy retrieval function that stores all input in the 'inputs' variable.
         """
         inputs.append(input_data)
-        results = input_data[["obs_pmw"]].copy(deep=True)
-        results = results[{"channels_pmw": 0}].rename(
-            obs_pmw="surface_precip"
+        results = input_data[["obs_gmi"]].copy(deep=True)
+        results = results[{"channels_gmi": 0}].rename(
+            obs_gmi="surface_precip"
         )
         return results
 
@@ -352,9 +358,9 @@ def test_process_tiled_batched(input_data_fixture, request):
         Dummy retrieval function that stores all input in the 'inputs' variable.
         """
         inputs.append(input_data)
-        results = input_data[["obs_pmw"]].copy(deep=True)
-        results = results[{"channels_pmw": 0}].rename(
-            obs_pmw="surface_precip"
+        results = input_data[["obs_gmi"]].copy(deep=True)
+        results = results[{"channels_gmi": 0}].rename(
+            obs_gmi="surface_precip"
         )
         return results
 
@@ -406,9 +412,9 @@ def test_process_tiled_batched(input_data_fixture, request):
         Dummy retrieval function that stores all input in the 'inputs' variable.
         """
         inputs.append(input_data)
-        results = input_data[["obs_pmw"]].copy(deep=True)
-        results = results[{"channels_pmw": 0}].rename(
-            obs_pmw="surface_precip"
+        results = input_data[["obs_gmi"]].copy(deep=True)
+        results = results[{"channels_gmi": 0}].rename(
+            obs_gmi="surface_precip"
         )
         return results
 
@@ -457,9 +463,9 @@ def test_process_tabular(input_data_fixture, request):
         Dummy retrieval function that stores all input in the 'inputs' variable.
         """
         inputs.append(input_data)
-        results = input_data[["obs_pmw"]].copy(deep=True)
-        results = results[{"channels_pmw": 0}].rename(
-            obs_pmw="surface_precip"
+        results = input_data[["obs_gmi"]].copy(deep=True)
+        results = results[{"channels_gmi": 0}].rename(
+            obs_gmi="surface_precip"
         )
         return results
 
@@ -491,7 +497,7 @@ def test_evaluate_scene(geometry, spr_gmi_evaluation, tmp_path):
     evaluator = Evaluator(
         "gmi",
         geometry,
-        ["pmw", "ancillary"],
+        ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
         download=False
     )
@@ -543,7 +549,7 @@ def test_quantification_metrics(geometry, spr_gmi_evaluation, tmp_path):
     evaluator = Evaluator(
         "gmi",
         geometry,
-        ["pmw", "ancillary"],
+        ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
         download=False
     )
@@ -579,7 +585,7 @@ def test_evaluate(geometry, spr_gmi_evaluation, tmp_path):
     evaluator = Evaluator(
         "gmi",
         geometry,
-        ["pmw", "ancillary"],
+        ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
         download=False
     )

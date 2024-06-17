@@ -74,7 +74,9 @@ def flatten(dict_or_list: List[Path] | Dict[str, Any]) -> Dict[str, Any]:
 
 @ipwgml.command(name="list_files")
 def list_files():
-
+    """
+    List locally available ipwgml file.
+    """
     current_data_path = str(get_data_path())
 
     rich.print(f"""

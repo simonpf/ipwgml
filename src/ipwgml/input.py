@@ -17,13 +17,72 @@ from ipwgml.definitions import ANCILLARY_VARIABLES
 from ipwgml.utils import open_if_required
 
 
+def normalize(
+        data: np.ndarray,
+        stats: xr.Dataset,
+        how: Optional[str] = None,
+        nan: Optional[float] = None
+) -> np.ndarray:
+    """
+    Normalize input data and replace missing values.
+
+    Args:
+        data: An numpy.ndarray containing the data to normalize.
+        stats: An xarray.Dataset containing the summary statistics of the data.
+        how: A string specifying how to normalize the data. Should be one of
+            ['standardize', 'minmax']>
+        nan: If given, use this value to replace NAN values in the input.
+
+    Return:
+        The give array 'data' normalized according to the given statistics and
+        chosen normalization method and, if 'nan' is not None, with NAN values
+        replaced with 'nan'.
+    """
+    if how is not None:
+        pad_dims = data.ndim - 1
+        if how.lower() == "standardize":
+            mu = stats["mean"].data.__getitem__((...,) + (None,) * pad_dims)
+            sigma = stats["std_dev"].data.__getitem__((...,) + (None,) * pad_dims)
+            data = (data - mu) / (sigma + 1e-6)
+        elif how.lower() == "minmax":
+            x_max = stats["max"].data.__getitem__((...,) + (None,) * pad_dims)
+            x_min = stats["min"].data.__getitem__((...,) + (None,) * pad_dims)
+            data = 2.0 * (data - x_min) / (x_max - x_min + 1e-6) - 1.0
+        else:
+            raise ValueError(
+                "The normalization strategy '%s' is not supported. Supported strategies are "
+                "'standardize' and 'minmax'."
+            )
+
+    if nan is not None:
+        data = np.nan_to_num(data, nan=nan, copy=True)
+    return data
+
+
+
 class InputConfig(ABC):
     """
     Base class for input data records used to define what input data to load.
     """
     @classmethod
     def parse(self, inpt: Union[str, Dict[str, Any], "InputConfig"]) -> "InputConfig":
+        """
+        Parse InputConfig object from an argument that can be either a string, a dictionary
+        or an InputConfig object.
 
+        If 'inpt' is a string, this method will simply instantiate the InputConfig sub-class
+        of the corresponding name, which will be instantiated with the default settings.
+        If 'inpt' is a dictionary, it must have field 'name' specifying the name of the
+        InputConfig sub-class to instantiate. All other keys in the dictionary will be
+        passed to the constructor call of this class. Finally, if 'inpt' is allready
+        an InputConfig sub-class object, it is returned as-is.
+
+        Args:
+            inpt: The inpt to parse as a InputConfig object.
+
+        Return:
+            An object of an InputConfig sub-class.
+        """
         if isinstance(inpt, InputConfig):
             return inpt
         elif isinstance(inpt, str):
@@ -43,8 +102,8 @@ class InputConfig(ABC):
                 f"Unsupported input for parsing an InputConfig: {inpt}"
             )
 
-        if name.lower() == "pmw":
-            return PMW(**kwargs)
+        if name.lower() == "gmi":
+            return GMI(**kwargs)
         elif name.lower() == "ancillary":
             return Ancillary(**kwargs)
         elif name.lower() == "geo":
@@ -59,6 +118,12 @@ class InputConfig(ABC):
     def name(self) -> str:
         """
         String representation of the input.
+        """
+
+    @abstractproperty
+    def stats(self) -> xr.Dataset:
+        """
+        xarray.Dataset containing summary statistics for the input.
         """
 
     def __hash__(self):
@@ -76,7 +141,9 @@ class PMW(InputConfig):
     def __init__(
             self,
             channels: Optional[List[int]] = None,
-            include_angles: bool = True
+            include_angles: bool = True,
+            normalize: Optional[str] = None,
+            nan: Optional[str] = None
     ):
         """
         Args:
@@ -84,14 +151,40 @@ class PMW(InputConfig):
                 load. If 'None', all channels will be loaded.
             include_angles: Wether or not to include the eart-incidence angles of the
                 observations in the input.
+            normalize: An optional string specifying how to normalize the input data.
+            nan: An optional float value that will be used to replace missing values
+                in the input data.
         """
         self.channels = channels
         self.include_angles = include_angles
+        self.normalize = normalize
+        self.nan = nan
+        self._obs_stats = None
+        self._ang_stats = None
 
     @property
-    def name(self) -> str:
-        return "pmw"
+    def stats(self) -> xr.Dataset:
+        """
+        xarray.Dataset containing summary statistics for the input.
+        """
+        if self._obs_stats is None:
+            stats_file = Path(__file__).parent / "files" / "stats" / f"obs_{self.name}.nc"
+            self._obs_stats = xr.load_dataset(stats_file)
+            if self.channels is not None:
+                self._obs_stats = self._obs_stats[{"features": self.channels}]
+        return self._obs_stats
 
+    @property
+    def ang_stats(self) -> xr.Dataset:
+        """
+        xarray.Dataset containing summary statistics for the viewing angles.
+        """
+        if self._ang_stats is None:
+            stats_file = Path(__file__).parent / "files" / "stats" / f"eia_{self.name}.nc"
+            self._ang_stats = xr.load_dataset(stats_file)
+            if self.channels is not None:
+                self._ang_stats = self._ang_stats[{"features": self.channels}]
+        return self._ang_stats
 
     def load_data(self, pmw_data_file: Path, target_time: xr.DataArray) -> Dict[str, np.ndarray]:
         """
@@ -102,9 +195,9 @@ class PMW(InputConfig):
             target_time: Not used.
 
         Return:
-            A dictionary mapping the keys 'obs_pmw' the loaded PMW observations. If 'include_angles'
+            A dictionary mapping the keys 'obs_<sensor_name>' the loaded PMW observations. If 'include_angles'
             is 'True' the dictionary will also containg the earth-incidence angles with the
-            key 'eia_pmw'.
+            key 'eia_<sensor_name>'.
         """
         with open_if_required(pmw_data_file) as pmw_data:
             pmw_data = pmw_data[["observations", "earth_incidence_angle"]].transpose("channel", ...)
@@ -113,11 +206,16 @@ class PMW(InputConfig):
             else:
                 pmw_data = pmw_data[{"channel": slice(0, None)}]
 
+        obs = pmw_data["observations"].data
+        obs = normalize(obs, self.stats, how=self.normalize, nan=self.nan)
+
         inpt_data = {
-            "obs_pmw": pmw_data["observations"].data,
+            f"obs_{self.name}": obs
         }
         if self.include_angles:
-            inpt_data["eia_pmw"] = pmw_data["earth_incidence_angle"].data
+            angs = pmw_data["earth_incidence_angle"].data
+            angs = normalize(angs, self.ang_stats, how=self.normalize, nan=self.nan)
+            inpt_data[f"eia_{self.name}"] = angs
 
         return inpt_data
 
@@ -125,51 +223,36 @@ class PMW(InputConfig):
 @dataclass
 class GMI(PMW):
     """
-    InputData record class representing passive-microwave (PMW) observations.
+    InputData record class representing passive-microwave (PMW) observations from the GMI sensor.
     """
+    def __init__(
+            self,
+            channels: Optional[List[int]] = None,
+            include_angles: bool = True,
+            normalize: Optional[str] = None,
+            nan: Optional[str] = None
+    ):
+        """
+        Args:
+            channels: An optional list of zero-based indices identifying channels to
+                load. If 'None', all channels will be loaded.
+            include_angles: Wether or not to include the eart-incidence angles of the
+                observations in the input.
+            normalize: An optional string specifying how to normalize the input data.
+            nan: An optional float value that will be used to replace missing values
+                in the input data.
+        """
+        self.channels = channels
+        self.include_angles = include_angles
+        self.normalize = normalize
+        self.nan = nan
+        self._obs_stats = None
+        self._ang_stats = None
+
     @property
     def name(self) -> str:
         return "gmi"
 
-    @property
-    def input_features(self) -> int:
-        if self.channels is None:
-            n_chans = 13
-        else:
-            n_chans = len(self.channels)
-        input_features = {"obs_gmi": n_chans}
-        if self.include_channels:
-            input_features["eia_gmi"] = n_chans
-        return input_features
-
-
-    def load_data(self, pmw_data_file: Path, target_time: xr.DataArray) -> Dict[str, np.ndarray]:
-        """
-        Load PMW observations from NetCDF file.
-
-        Args:
-            pmw_data_file: A Path object pointing to the file from which to load the input data.
-            target_time: Not used.
-
-        Return:
-            A dictionary mapping the keys 'obs_pmw' the loaded PMW observations. If 'include_angles'
-            is 'True' the dictionary will also containg the earth-incidence angles with the
-            key 'eia_pmw'.
-        """
-        with open_if_required(pmw_data_file) as pmw_data:
-            pmw_data = pmw_data[["observations", "earth_incidence_angle"]].transpose("channel", ...)
-            if self.channels is not None:
-                pmw_data = pmw_data[{"channels": self.channels}]
-            else:
-                pmw_data - pmw_data[{"channels": slice(0, None)}]
-
-        inpt_data = {
-            "obs_gmi": pmw_data["observations"].data,
-        }
-        if self.include_channels:
-            inpt_data["eia_gmi"] = pmw_data["earth_incidence_angle"].data
-
-        return inpt_data
 
 @dataclass
 class Ancillary(InputConfig):
@@ -178,19 +261,36 @@ class Ancillary(InputConfig):
     """
     def __init__(
             self,
-            variables: Optional[List[str]] = None
+            variables: Optional[List[str]] = None,
+            normalize: Optional[str] = None,
+            nan: Optional[float] = None
     ):
         """
         Args:
             variable: A list of strings specifying the ancillary data to load.
+            normalize: An optional string specifying how to normalize the input data.
+            nan: An optional float value that will be used to replace missing values
+                in the input data.
         """
         if variables is None:
             variables = ANCILLARY_VARIABLES
         self.variables = variables
+        self._stats = None
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "ancillary"
+
+    @property
+    def stats(self) -> xr.Dataset:
+        """
+        xarray.Dataset containing summary statistics for the input.
+        """
+        if self._stats is None:
+            stats_file = Path(__file__).parent / "files" / "stats" / "obs_pmw.nc"
+            inds = [ind for ind, var in enumerate(ANCILLARY_VARIABLES) if var in self.variables]
+            self._stats = xr.load_dataset(stats_file)[{"features": inds}]
+        return self._stats
 
     def load_data(self, ancillary_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
         """
@@ -224,13 +324,18 @@ class GeoIR(InputConfig):
     def __init__(
             self,
             time_steps: Optional[List[int]] = None,
-            nearest: bool = False
+            nearest: bool = False,
+            normalize: Optional[str] = None,
+            nan: Optional[float] = None
     ):
         """
         Args:
             time_steps: Optional list of time steps to load.
             nearest: It 'True' only observations from the time nearest to the target
                 time will be loaded.
+            normalize: An optional string specifying how to normalize the input data.
+            nan: An optional float value that will be used to replace missing values
+                in the input data.
         """
         if time_steps is None:
             time_steps = list(range(8))
@@ -241,10 +346,23 @@ class GeoIR(InputConfig):
                 )
         self.time_steps = time_steps
         self.nearest = nearest
+        self.normalize = normalize
+        self.nan = nan
+        self._stats = None
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "geo_ir"
+
+    @property
+    def stats(self) -> xr.Dataset:
+        """
+        xarray.Dataset containing summary statistics for the input.
+        """
+        if self._stats is None:
+            stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo_ir.nc"
+            self._stats = xr.load_dataset(stats_file)
+        return self._stats
 
     def load_data(self, geo_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
         """
@@ -282,13 +400,18 @@ class Geo(InputConfig):
     def __init__(
             self,
             time_steps: Optional[List[int]] = None,
-            nearest: bool = False
+            nearest: bool = False,
+            normalize: Optional[str] = None,
+            nan: Optional[float] = None
     ):
         """
         Args:
             time_steps: Optional list of time steps to load.
             nearest: It 'True' only observations from the time nearest to the target
                 time will be loaded.
+            normalize: An optional string specifying how to normalize the input data.
+            nan: An optional float value that will be used to replace missing values
+                in the input data.
         """
         if time_steps is None:
             time_steps = list(range(4))
@@ -299,10 +422,21 @@ class Geo(InputConfig):
                 )
         self.time_steps = time_steps
         self.nearest = nearest
+        self._stats = None
 
     @property
-    def name(self):
+    def name(self) -> str:
         return "geo"
+
+    @property
+    def stats(self) -> xr.Dataset:
+        """
+        xarray.Dataset containing summary statistics for the input.
+        """
+        if self._stats is None:
+            stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo_ir.nc"
+            self._stats = xr.load_dataset(stats_file)
+        return self._stats
 
     def load_data(self, geo_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
         """
@@ -329,7 +463,7 @@ class Geo(InputConfig):
                 obs = geo_data.observations[{"time": inds}].transpose("channel", ...).data[None]
             else:
                 obs = geo_data.observations[{"time": self.time_steps}].data
-        shape = obs.shape
+
         return {"obs_geo": obs}
 
 
