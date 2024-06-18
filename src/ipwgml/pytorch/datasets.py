@@ -8,7 +8,7 @@ from datetime import datetime
 from math import ceil
 import os
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -36,6 +36,7 @@ class SPRTabular(Dataset):
         shuffle: Optional[bool] = False,
         retrieval_input: List[str | Dict[str, Any] | InputConfig] = None,
         target_config: Optional[TargetConfig] = None,
+        stack: bool = False,
         ipwgml_path: Optional[Path] = None,
         download: bool = True,
     ):
@@ -43,8 +44,8 @@ class SPRTabular(Dataset):
         Args:
             sensor: The sensor for which to load the benchmark dataset.
             geometry: Whether to load on_swath or regridded observations.
-            split: Whether to load training ('train'), validation ('val'), or
-                 test ('test') splits.
+            split: Whether to load training ('training'), validation ('validation'), or
+                 test ('testing') splits.
             batch_size: If given will return batched input data.
             shuffle: Whether or not to shuffle the samples in the dataset.
             retrieval_input: List of the retrieval inputs to load. The list should contain
@@ -53,6 +54,9 @@ class SPRTabular(Dataset):
                 specified all available input data is loaded.
             target_config: An optional TargetConfig specifying quality requirements for the retrieval
                 target data to load.
+            stack: If 'False', the input will be loaded as a dictionary containing the input tensors
+                from all input dataset. If 'True', the tensors will be concatenated along the
+                feature axis and only a single tensor is loaded instead of dictionary.
             ipwgml_path: Path containing or to which to download the IPWGML data.
             download: If 'True', missing data will be downloaded upon dataset creation. Otherwise, only
                 locally available files will be used.
@@ -64,9 +68,9 @@ class SPRTabular(Dataset):
         else:
             ipwgml_path = Path(ipwgml_path)
 
-        if not sensor.lower() in ["gmi", "mhs"]:
+        if not sensor.lower() in ["gmi", "atms"]:
             raise ValueError(
-                "Sensor must be one of ['gmi', 'mhs']."
+                "Sensor must be one of ['gmi', 'atms']."
             )
         self.sensor = sensor.lower()
 
@@ -91,6 +95,8 @@ class SPRTabular(Dataset):
         if target_config is None:
             target_config = TargetConfig()
         self.target_config = target_config
+
+        self.stack = stack
 
         self.pmw_data = None
         self.geo_data = None
@@ -145,7 +151,7 @@ class SPRTabular(Dataset):
         return n_batches
 
 
-    def __getitem__(self, ind: int) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
+    def __getitem__(self, ind: int) -> Tuple[Union[torch.Tensor, Dict[str, torch.Tensor]], torch.Tensor]:
         """
         Return sample from dataset.
 
@@ -153,9 +159,10 @@ class SPRTabular(Dataset):
                 ind: The index identifying the sample.
 
         Return:
-                A tuple ``input, target`` containing a dictionary ``input`` mapping retrieval input
-                names to corresponding input tensors and ``target`` a single tensor containing the
-                target precipitation.
+            A tuple ``input, target`` containing a the retrieval input data in ``input`` and
+            the target data in ``target``. If ``stack`` is 'True', ``input`` is a tensor containing
+            all input data, otherwise ``input`` is dictionary mapping the separate input names
+            to separate tensors and it is up to the user to combine them.
         """
         if ind >= len(self):
             raise IndexError("Dataset is exhausted.")
@@ -190,6 +197,9 @@ class SPRTabular(Dataset):
                 else:
                     arr = arr.ravel()
                 input_data[key] = torch.tensor(arr.astype(np.float32))
+
+        if self.stack:
+            input_data = torch.cat(list(input_data.values()), -1)
 
         return input_data, surface_precip
 
@@ -253,6 +263,7 @@ class SPRSpatial:
         split: str,
         retrieval_input: List[str | dict[str | Any] | InputConfig] = None,
         target_config: TargetConfig = None,
+        stack: bool = False,
         augment: bool = True,
         ipwgml_path: Optional[Path] = None,
         download: bool = True,
@@ -269,6 +280,9 @@ class SPRSpatial:
                 specified all available input data is loaded.
             target_config: An optional TargetConfig specifying quality requirements for the retrieval
                 target data to load.
+            stack: If 'False', the input will be loaded as a dictionary containing the input tensors
+                from all input dataset. If 'True', the tensors will be concatenated along the feature axis
+                and only a single tensor is loaded instead of dictionary.
             augment: If 'True' will apply random horizontal and vertical flips to the input data.
             ipwgml_path: Path containing or to which to download the IPWGML data.
             download: If 'True', missing data will be downloaded upon dataset creation. Otherwise, only
@@ -281,9 +295,9 @@ class SPRSpatial:
         else:
             ipwgml_path = Path(ipwgml_path)
 
-        if not sensor.lower() in ["gmi", "mhs"]:
+        if not sensor.lower() in ["gmi", "atms"]:
             raise ValueError(
-                "Sensor must be one of ['gmi', 'mhs']."
+                "Sensor must be one of ['gmi', 'atms']."
             )
         self.sensor = sensor.lower()
 
@@ -307,6 +321,7 @@ class SPRSpatial:
             target_config = TargetConfig()
         self.target_config = target_config
 
+        self.stack = stack
         self.augment = augment
 
         self.pmw = None
@@ -400,5 +415,8 @@ class SPRSpatial:
 
             input_data = apply(input_data, transform)
             target = apply(target, transform)
+
+        if self.stack:
+            input_data = torch.cat(list(input_data.values()), axis=0)
 
         return input_data, target
