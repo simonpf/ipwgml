@@ -1,2 +1,3 @@
 include src/ipwgml/files/ipwgml.mplstyle
 include src/ipwgml/files/stats/*.nc
+include src/ipwgml/files/baselines/*.nc
