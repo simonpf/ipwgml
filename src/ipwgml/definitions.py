@@ -17,6 +17,7 @@ ANCILLARY_VARIABLES = [
     "snow_depth",
     "orographic_wind",
     "10m_wind",
+    "surface_type",
     "mountain_type",
     "land_fraction",
     "ice_fraction",

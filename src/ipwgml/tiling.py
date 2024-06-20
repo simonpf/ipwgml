@@ -193,6 +193,9 @@ class DatasetTiler:
 
         if row_ind > 0:
             trans_start = self.row_starts[row_ind]
+            if row_ind > 1:
+                trans_end_prev = self.row_starts[row_ind - 2] + self.tile_size[0]
+                trans_start = max(trans_start, trans_end_prev)
             zeros = trans_start - self.row_starts[row_ind]
             trans_end = self.row_starts[row_ind - 1] + self.tile_size[0]
             # Limit transition zone to overlap.
@@ -212,9 +215,14 @@ class DatasetTiler:
         w_cols = np.ones((n_rows, n_cols))
         if col_ind > 0:
             trans_start = self.col_starts[col_ind]
+            if col_ind > 1:
+                trans_end_prev = self.col_starts[col_ind - 2] + self.tile_size[1]
+                trans_start = max(trans_start, trans_end_prev)
+            zeros = trans_start - self.col_starts[col_ind]
             trans_end = self.col_starts[col_ind - 1] + self.tile_size[1]
             l_trans = min(trans_end - trans_start, self.overlap)
-            w_cols[:, :l_trans] = np.linspace(0, 1, l_trans)[np.newaxis]
+            w_cols[:, :zeros] = 0.0
+            w_cols[:, zeros : zeros + l_trans] = np.linspace(0, 1, l_trans)[np.newaxis]
 
         if col_ind < self.n_cols_tiled - 1:
             trans_start = self.col_starts[col_ind + 1]

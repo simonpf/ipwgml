@@ -15,7 +15,7 @@ def test_dataset_spr_tabular(spr_gmi_on_swath_tabular_train):
         sensor="gmi",
         geometry="on_swath",
         split="training",
-        retrieval_input=["gmi", "geo_ir", "ancillary"],
+        retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
         download=False
     )
@@ -26,8 +26,8 @@ def test_dataset_spr_tabular(spr_gmi_on_swath_tabular_train):
     assert x["obs_gmi"].shape == (13,)
     assert "obs_geo_ir" in x
     assert x["obs_geo_ir"].shape == (8,)
-    #assert "obs_geo" in x
-    #assert x["obs_geo"].shape == (64,)
+    assert "obs_geo" in x
+    assert x["obs_geo"].shape == (64,)
     assert "ancillary" in x
     assert y.numel() == 1
 
@@ -63,8 +63,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
         sensor="gmi",
         geometry="on_swath",
         split="training",
-        #retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
-        retrieval_input=["gmi", "geo_ir", "ancillary"],
+        retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
         download=False,
         batch_size=batch_size
@@ -76,7 +75,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
             assert "obs_gmi" in x
             assert x["obs_gmi"].shape == (batch_size, 13)
             assert x["obs_geo_ir"].shape == (batch_size, 8)
-            #assert x["obs_geo"].shape == (batch_size, 64)
+            assert x["obs_geo"].shape == (batch_size, 64)
             assert "ancillary" in x
             assert y.numel() == batch_size
 
@@ -86,7 +85,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
         split="training",
         retrieval_input=[
             {"name": "gmi", "channels": [0, -2, -1]},
-            #{"name": "geo", "nearest": True},
+            {"name": "geo", "nearest": True},
             {"name": "geo_ir", "nearest": True},
             {"name": "ancillary", "variables": ["two_meter_temperature"]}
         ],

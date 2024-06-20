@@ -52,31 +52,31 @@ def test_load_input_data(spr_gmi_evaluation):
     """
     target_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701212646.nc"
+        / "gridded" / "target" / "target_20230701195312.nc"
     )
     target_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "target" / "target_20230701212646.nc"
+        / "on_swath" / "target" / "target_20230701195312.nc"
     )
     gmi_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "gmi" / "gmi_20230701212646.nc"
+        / "gridded" / "gmi" / "gmi_20230701195312.nc"
     )
     gmi_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "gmi" / "gmi_20230701212646.nc"
+        / "on_swath" / "gmi" / "gmi_20230701195312.nc"
     )
     ancillary_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "ancillary" / "ancillary_20230701212646.nc"
+        / "gridded" / "ancillary" / "ancillary_20230701195312.nc"
     )
     ancillary_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "ancillary" / "ancillary_20230701212646.nc"
+        / "on_swath" / "ancillary" / "ancillary_20230701195312.nc"
     )
     target_file = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701212646.nc"
+        / "gridded" / "target" / "target_20230701195312.nc"
     )
 
 
@@ -128,31 +128,31 @@ def test_load_input_data(spr_gmi_evaluation):
 def input_data_gridded(spr_gmi_evaluation):
     target_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701212646.nc"
+        / "gridded" / "target" / "target_20230701195312.nc"
     )
     target_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "target" / "target_20230701212646.nc"
+        / "on_swath" / "target" / "target_20230701195312.nc"
     )
     gmi_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "gmi" / "gmi_20230701212646.nc"
+        / "gridded" / "gmi" / "gmi_20230701195312.nc"
     )
     gmi_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "gmi" / "gmi_20230701212646.nc"
+        / "on_swath" / "gmi" / "gmi_20230701195312.nc"
     )
     ancillary_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "ancillary" / "ancillary_20230701212646.nc"
+        / "gridded" / "ancillary" / "ancillary_20230701195312.nc"
     )
     ancillary_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "ancillary" / "ancillary_20230701212646.nc"
+        / "on_swath" / "ancillary" / "ancillary_20230701195312.nc"
     )
     target_file = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701212646.nc"
+        / "gridded" / "target" / "target_20230701195312.nc"
     )
 
     input_files = InputFiles(
@@ -182,31 +182,31 @@ def input_data_gridded(spr_gmi_evaluation):
 def input_data_on_swath(spr_gmi_evaluation):
     target_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701212646.nc"
+        / "gridded" / "target" / "target_20230701195312.nc"
     )
     target_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "target" / "target_20230701212646.nc"
+        / "on_swath" / "target" / "target_20230701195312.nc"
     )
     gmi_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "gmi" / "gmi_20230701212646.nc"
+        / "gridded" / "gmi" / "gmi_20230701195312.nc"
     )
     gmi_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "gmi" / "gmi_20230701212646.nc"
+        / "on_swath" / "gmi" / "gmi_20230701195312.nc"
     )
     ancillary_file_gridded = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "ancillary" / "ancillary_20230701212646.nc"
+        / "gridded" / "ancillary" / "ancillary_20230701195312.nc"
     )
     ancillary_file_on_swath = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "ancillary" / "ancillary_20230701212646.nc"
+        / "on_swath" / "ancillary" / "ancillary_20230701195312.nc"
     )
     target_file = (
         spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701212646.nc"
+        / "gridded" / "target" / "target_20230701195312.nc"
     )
 
     input_files = InputFiles(
@@ -238,11 +238,17 @@ def input_data_on_swath(spr_gmi_evaluation):
 )
 def test_process_tiled(input_data_fixture, request):
     """
-    Test evaluation with a given tile size and ensure that input data
-    passed to retrieval_fn has the expected tile size.
+    Test tiled non-batch processing of evaluation scenes. Ensure that
+    - Input tiles have the requested shape
+    - Results are assembled correctly by returning longitude and latitude coordinates
+      in the surface_precip and probability_of_precip fields.
     """
 
     input_data = request.getfixturevalue(input_data_fixture)
+    if "latitude" in input_data.dims:
+        spatial_dims = ["latitude", "longitude"]
+    else:
+        spatial_dims = ["scan", "pixel"]
 
     inputs = []
     def retrieval_fn(input_data):
@@ -251,9 +257,20 @@ def test_process_tiled(input_data_fixture, request):
         """
         inputs.append(input_data)
         results = input_data[["obs_gmi"]].copy(deep=True)
-        results = results[{"channels_gmi": 0}].rename(
-            obs_gmi="surface_precip"
-        )
+        lons = input_data["longitude"].data
+        lats = input_data["latitude"].data
+        if lons.ndim == 1:
+            lons, lats = np.meshgrid(lons, lats)
+
+        lons_rounded = (lons - np.round(lons)) > 0
+        lats_rounded = (lats - np.round(lats)) > 0
+
+        results = xr.Dataset({
+            "surface_precip": (spatial_dims, lons),
+            "probability_of_precip": (spatial_dims, lats),
+            "precip_flag": (spatial_dims, lons_rounded),
+            "heavy_precip_flag": (spatial_dims, lats_rounded),
+        })
         return results
 
     results = process_scene_spatial(
@@ -284,6 +301,22 @@ def test_process_tiled(input_data_fixture, request):
     if "longitude" in input_data.dims:
         assert input_data.longitude.size == results.longitude.size
 
+    lons = results.surface_precip.data
+    lats = results.probability_of_precip.data
+    lons_ref = input_data.longitude.data
+    lats_ref = input_data.latitude.data
+    if lons_ref.ndim == 1:
+        lons_ref, lats_ref = np.meshgrid(lons_ref, lats_ref)
+
+    assert np.isclose(lons, lons_ref, rtol=1e-3).all()
+    assert np.isclose(lats, lats_ref, rtol=1e-3).all()
+
+    lons_rounded = (lons_ref - np.round(lons_ref)) > 0
+    lats_rounded = (lats_ref - np.round(lats_ref)) > 0
+
+    assert (lons_rounded == results["precip_flag"]).all()
+    assert (lats_rounded == results["heavy_precip_flag"]).all()
+
 
 @pytest.mark.parametrize(
     "input_data_fixture",
@@ -295,6 +328,10 @@ def test_process_untiled(input_data_fixture, request):
     is passed to retrieval fn.
     """
     input_data = request.getfixturevalue(input_data_fixture)
+    if "latitude" in input_data.dims:
+        spatial_dims = ["latitude", "longitude"]
+    else:
+        spatial_dims = ["scan", "pixel"]
 
     inputs = []
     def retrieval_fn(input_data):
@@ -303,9 +340,20 @@ def test_process_untiled(input_data_fixture, request):
         """
         inputs.append(input_data)
         results = input_data[["obs_gmi"]].copy(deep=True)
-        results = results[{"channels_gmi": 0}].rename(
-            obs_gmi="surface_precip"
-        )
+        lons = input_data["longitude"].data
+        lats = input_data["latitude"].data
+        if lons.ndim == 1:
+            lons, lats = np.meshgrid(lons, lats)
+
+        lons_rounded = (lons - np.round(lons)) > 0
+        lats_rounded = (lats - np.round(lats)) > 0
+
+        results = xr.Dataset({
+            "surface_precip": (spatial_dims, lons),
+            "probability_of_precip": (spatial_dims, lats),
+            "precip_flag": (spatial_dims, lons_rounded),
+            "heavy_precip_flag": (spatial_dims, lats_rounded),
+        })
         return results
 
     results = process_scene_spatial(
@@ -338,6 +386,22 @@ def test_process_untiled(input_data_fixture, request):
     if "longitude" in input_data.dims:
         assert input_data.longitude.size == results.longitude.size
 
+    lons = results.surface_precip.data
+    lats = results.probability_of_precip.data
+    lons_ref = input_data.longitude.data
+    lats_ref = input_data.latitude.data
+    if lons_ref.ndim == 1:
+        lons_ref, lats_ref = np.meshgrid(lons_ref, lats_ref)
+
+    assert np.isclose(lons, lons_ref, rtol=1e-3).all()
+    assert np.isclose(lats, lats_ref, rtol=1e-3).all()
+
+    lons_rounded = (lons_ref - np.round(lons_ref)) > 0
+    lats_rounded = (lats_ref - np.round(lats_ref)) > 0
+
+    assert (lons_rounded == results["precip_flag"]).all()
+    assert (lats_rounded == results["heavy_precip_flag"]).all()
+
 
 @pytest.mark.parametrize(
     "input_data_fixture",
@@ -349,62 +413,11 @@ def test_process_tiled_batched(input_data_fixture, request):
     passed to retrieval_fn has the expected tile size and that is is
     batched.
     """
-
     input_data = request.getfixturevalue(input_data_fixture)
-
-    inputs = []
-    def retrieval_fn(input_data):
-        """
-        Dummy retrieval function that stores all input in the 'inputs' variable.
-        """
-        inputs.append(input_data)
-        results = input_data[["obs_gmi"]].copy(deep=True)
-        results = results[{"channels_gmi": 0}].rename(
-            obs_gmi="surface_precip"
-        )
-        return results
-
-    results = process_scene_spatial(
-        input_data,
-        tile_size=(64, 64),
-        overlap=16,
-        batch_size=8,
-        retrieval_fn=retrieval_fn
-    )
-
-    for inpt in inputs:
-        if "scan" in inpt.dims:
-            assert inpt.scan.size == 64
-        if "pixel" in inpt.dims:
-            assert inpt.pixel.size == 64
-        if "latitude" in inpt.dims:
-            assert inpt.latitude.size == 64
-        if "longitude" in inpt.dims:
-            assert inpt.longitude.size == 64
-        assert "batch" in inpt.dims
-
-    if "scan" in input_data.dims:
-        assert input_data.scan.size == results.scan.size
-    if "pixel" in input_data.dims:
-        assert input_data.pixel.size == results.pixel.size
     if "latitude" in input_data.dims:
-        assert input_data.latitude.size == results.latitude.size
-    if "longitude" in input_data.dims:
-        assert input_data.longitude.size == results.longitude.size
-
-
-@pytest.mark.parametrize(
-    "input_data_fixture",
-    ["input_data_gridded", "input_data_on_swath"]
-)
-def test_process_tiled_batched(input_data_fixture, request):
-    """
-    Test evaluation with a given tile size and ensure that input data
-    passed to retrieval_fn has the expected tile size and that is is
-    batched.
-    """
-
-    input_data = request.getfixturevalue(input_data_fixture)
+        spatial_dims = ("latitude", "longitude")
+    else:
+        spatial_dims = ("scan", "pixel")
 
     inputs = []
     def retrieval_fn(input_data):
@@ -413,9 +426,22 @@ def test_process_tiled_batched(input_data_fixture, request):
         """
         inputs.append(input_data)
         results = input_data[["obs_gmi"]].copy(deep=True)
-        results = results[{"channels_gmi": 0}].rename(
-            obs_gmi="surface_precip"
-        )
+        obs = input_data["obs_gmi"].data[:, 0]
+        lons = input_data["longitude"].data
+        lats = input_data["latitude"].data
+        if lons.ndim == 2:
+            lons = np.broadcast_to(lons[..., None, :], obs.shape)
+            lats = np.broadcast_to(lats[..., None], obs.shape)
+
+        lons_rounded = (lons - np.round(lons)) > 0
+        lats_rounded = (lats - np.round(lats)) > 0
+
+        results = xr.Dataset({
+            "surface_precip": (("batch",) + spatial_dims, lons),
+            "probability_of_precip": (("batch",) + spatial_dims, lats),
+            "precip_flag": (("batch",) + spatial_dims, lons_rounded),
+            "heavy_precip_flag": (("batch",) + spatial_dims, lats_rounded),
+        })
         return results
 
     results = process_scene_spatial(
@@ -428,9 +454,9 @@ def test_process_tiled_batched(input_data_fixture, request):
 
     for inpt in inputs:
         if "scan" in inpt.dims:
-            assert inpt.scan.size == 64
+            assert inpt.sizes["scan"] == 64
         if "pixel" in inpt.dims:
-            assert inpt.pixel.size == 64
+            assert inpt.sizes["pixel"] == 64
         if "latitude" in inpt.dims:
             assert inpt.sizes["latitude"] == 64
         if "longitude" in inpt.dims:
@@ -445,6 +471,22 @@ def test_process_tiled_batched(input_data_fixture, request):
         assert input_data.latitude.size == results.latitude.size
     if "longitude" in input_data.dims:
         assert input_data.longitude.size == results.longitude.size
+
+    lons = results.surface_precip.data
+    lats = results.probability_of_precip.data
+    lons_ref = input_data.longitude.data
+    lats_ref = input_data.latitude.data
+    if lons_ref.ndim == 1:
+        lons_ref, lats_ref = np.meshgrid(lons_ref, lats_ref)
+
+    assert np.isclose(lons, lons_ref, rtol=1e-3).all()
+    assert np.isclose(lats, lats_ref, rtol=1e-3).all()
+
+    lons_rounded = (lons_ref - np.round(lons_ref)) > 0
+    lats_rounded = (lats_ref - np.round(lats_ref)) > 0
+
+    assert (lons_rounded == results["precip_flag"]).all()
+    assert (lats_rounded == results["heavy_precip_flag"]).all()
 
 
 @pytest.mark.parametrize(
@@ -519,12 +561,11 @@ def test_evaluate_scene(geometry, spr_gmi_evaluation, tmp_path):
         MSE(),
         CorrelationCoef(),
     ]
+    evaluator.precip_quantification_metrics = metrics
 
     evaluator.evaluate_scene(
         0, None, None, None, retrieval_fn, "spatial",
-        quantification_metrics=metrics,
-        detection_metrics=[],
-        probabilistic_detection_metrics=[],
+        track=True,
         output_path=tmp_path
     )
 
@@ -532,10 +573,10 @@ def test_evaluate_scene(geometry, spr_gmi_evaluation, tmp_path):
     assert len(files) > 0
 
     bias = metrics[0].compute()
-    assert bias.bias.data == 0.0
+    assert np.isclose(bias.bias.data, 0.0, atol=1e-3)
 
     mse = metrics[1].compute()
-    assert mse.mse.data == 0.0
+    assert np.isclose(mse.mse.data, 0.0)
 
     correlation_coef = metrics[2].compute()
     assert np.isclose(correlation_coef.correlation_coef.data, 1.0)
@@ -554,18 +595,18 @@ def test_quantification_metrics(geometry, spr_gmi_evaluation, tmp_path):
         download=False
     )
 
-    metrics = evaluator.quantification_metrics
+    metrics = evaluator.precip_quantification_metrics
     for metric in metrics:
         assert isinstance(metric, Metric)
 
-    evaluator.quantification_metrics = ["Bias"]
-    metrics = evaluator.quantification_metrics
+    evaluator.precip_quantification_metrics = ["Bias"]
+    metrics = evaluator.precip_quantification_metrics
     assert len(metrics) == 1
     assert isinstance(metrics[0], Bias)
 
     metric = Bias()
-    evaluator.quantification_metrics = [metric]
-    metrics = evaluator.quantification_metrics
+    evaluator.precip_quantification_metrics = [metric]
+    metrics = evaluator.precip_quantification_metrics
     assert metric is metrics[0]
 
 
@@ -602,3 +643,5 @@ def test_evaluate(geometry, spr_gmi_evaluation, tmp_path):
 
     files = list(tmp_path.glob("results_*.nc"))
     assert len(files) > 0
+
+    results = evaluator.get_results()

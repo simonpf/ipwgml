@@ -2,7 +2,50 @@
 ipwgml.input
 ============
 
-Provides input data records to specify input data configurations.
+The ``ipwgml.input`` module provides configuration classes to represent and
+configure the retrieval input data for the SPR dataset. The currently supported
+input datasets are GMI observations, ATMS observations, ancillary data,
+geostationary observations, and geostationary IR observations. These retrieval
+inputs are represented by the classes :class:`Ancillary`, :class:`GMI`,
+``ATMS``, :class:`Geo`, :class:`GeoIR`. Each of these classes provides
+configuration options for the data that is actually loaded.
+
+Usage
+-----
+
+The above-named input config classes can be used everywhere that retrieval input
+data is specified, most notably in the :class:`ipwgml.evaluation.Evaluator`
+and the dataset classes.
+
+Alternatively, the retrieval input datasets can be specified using strings. In
+this case, the strings ``gmi``, ``atms``, ``ancillary`` ``geo``, ``geo_ir`` map
+to the classes :class:`Ancillary`, :class:`GMI`, ``ATMS``, :class:`Geo`,
+:class:`GeoIR`, which will be instantiated using their default configuration.
+
+Finally, it is also possible to specify an input using a dictionary. The
+dictionary must in this case have an entry ``name``, which should correspond the
+string representation of the input. The remaining key-value pairs in the
+dictionary will then be passed to the constructor of the corresponding input
+config class.
+
+As an example, the following three ways of repsenting GMI retrieval input are
+equivalent:
+
+.. code-block:: Python
+
+  retrieval_input = GMI(channels=None, include_angles=True, normalize=None, nan=None)
+  retrieval_input = ["gmi"]
+  retrieval_input = {
+      "name": "gmi",
+      "channels": None,
+      "include_angles": True,
+      "normalize": None,
+      "nan": None
+  }
+
+Members
+-------
+
 """
 from abc import ABC, abstractproperty
 from copy import copy
@@ -223,7 +266,16 @@ class PMW(InputConfig):
 @dataclass
 class GMI(PMW):
     """
-    InputData record class representing passive-microwave (PMW) observations from the GMI sensor.
+    Retrieval input data from the GPM Microwave Imager (GMI).
+
+    The GMI class represents observations from the GPM Microwave Imager (GMI) as
+    retrieval input data. It allows for limiting the input data to subsets of the
+    available GMI channels and including or excluding the earth-incidence angles
+    in the input data.
+
+    The GMI input will load tensors 'obs_gmi' containing the GMI passive microwave
+    observations and, if 'include_angles' is set to 'True', 'eia_gmi' containing the
+    earth incidence angles corresponding to the observations in 'obs_gmi'.
     """
     def __init__(
             self,
@@ -236,7 +288,7 @@ class GMI(PMW):
         Args:
             channels: An optional list of zero-based indices identifying channels to
                 load. If 'None', all channels will be loaded.
-            include_angles: Wether or not to include the eart-incidence angles of the
+            include_angles: Wether or not to include the earth-incidence angles of the
                 observations in the input.
             normalize: An optional string specifying how to normalize the input data.
             nan: An optional float value that will be used to replace missing values

@@ -3,6 +3,35 @@ ipwgml.metrics
 ==============
 
 Defines the metrics used to evaluate precipitation retrievals.
+
+The metrics objects are for iterative evaluation, i.e., results are passed to
+the metric iteratively for each collocation scene. The metric object keeps
+track of the necessary quantities required to compute the metrics. Finally, the
+value of the metrics over all considered scene can be computed using each
+metric's ``compute`` function. The metrics use shared memory to track required
+quantities so that evaluation can be performed in parallel using multiple
+processes.
+
+Usage
+-----
+
+While the metric classes defined here can, in principle, be used on their own,
+their intended use is with the :class:`ipwgml.evaluation.Evaluator` class, which
+holds the metrics to track in its ``precip_quantification_metrics``,
+``precip_detection_metrics``, ``prob_precip_detection_metrics``,
+``heavy_precip_detection_metrics``, and ``prob_heavy_precip_detection_metrics``.
+
+
+.. code-block:: Python
+
+   evaluator.precip_quantification_metrics = [EffectiveResolution()] # Track only bias
+   evaluator.precip_detection_metrics = [POD()] # Track only POD
+   evaluator.prob_precip_detection_metrics = [PRCurve()] # Track only PR curve
+   evaluator.heavy_precip_detection_metrics = [POD()] # Track only POD
+   evaluator.prob_heavy_precip_detection_metrics = [PRCurve()] # Track only PR curve
+
+
+The metrics are used by the :class:`ipgml.evaluation.Evaluator` to
 """
 from multiprocessing import shared_memory, Lock, Manager
 from typing import Any, Dict, Optional, Tuple
@@ -57,13 +86,20 @@ class Metric:
                 return np.ndarray(shape, dtype=dtype, buffer=shm.buf)
         raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
-    #def __getstate__(self) -> Dict[str, Any]:
-    #    """
-    #    Overwrite pickling behavior so that ownership of shared-memory buffers is set to False.
-    #    """
-    #    state = self.__dict__.copy()
-    #    state["owner"] = False
-    #    return state
+
+    def reset(self) -> None:
+        """
+        Reset metric state.
+
+        Sets all buffers associated with the metric to zero, assuming that this is
+        a valid initial state. If this is not the case, the child class should overwrite
+        the function.
+        """
+        for name in self._buffers:
+            print(name)
+            array = getattr(self, name)
+            array[:] = 0.0
+
 
     def cleanup(self) -> None:
         """
@@ -92,7 +128,22 @@ class Metric:
                     #shm.unlink()
 
 
-class ValidFraction(Metric):
+class QuantificationMetric(Metric):
+    """
+    Helper class to identify metrics to assess precipitation quantification.
+    """
+
+class DetectionMetric(Metric):
+    """
+    Helper class to identify metrics to assess precipitation detection.
+    """
+
+class ProbabilisticDetectionMetric(Metric):
+    """
+    Helper class to identify metrics to assess probabilistic precipitation detection.
+    """
+
+class ValidFraction(QuantificationMetric):
     """
     This metric tracks the number of predictions that are left out because the retrieved
     value is NAN.
@@ -133,17 +184,21 @@ class ValidFraction(Metric):
         valid_fraction = xr.Dataset(
             {"valid_fraction": valid_fraction[0]}
         )
-        valid_fraction.attrs["full_name"] = "Valid fraction"
-        valid_fraction.attrs["unit"] = ""
+        valid_fraction.valid_fraction.attrs["full_name"] = "Valid fraction"
+        valid_fraction.valid_fraction.attrs["unit"] = ""
         return valid_fraction
 
 
-class Bias(Metric):
+class Bias(QuantificationMetric):
     """
-    The bias or mean error calculated as the mean value of the difference between
-    prediction and target values: bias = mean(pred - target).
+    The bias, or mean error, calculated as the mean value of the difference between
+    prediction and target values:
 
-    The mean is calculated over all results passed to the 'compute' method for
+    .. math::
+
+      \\text{Bias} = \\mathbf{E}\{y_\\text{pred} - y_\\text{target}\}
+
+    where the mean is calculated over all results passed to the 'compute' method for
     which the target values are finite.
     """
 
@@ -198,18 +253,19 @@ class Bias(Metric):
 
         bias = xr.Dataset({"bias": bias[0]})
         bias.bias.attrs["full_name"] = "Bias"
-        bias.bias.attrs["unit"] = "%" if self.relative else "mm h^{-1}"
+        bias.bias.attrs["unit"] = "\%" if self.relative else "mm h^{-1}"
         return bias
 
 
-class MAE(Metric):
+class MAE(QuantificationMetric):
     """
     The mean-absolute error calculated as the mean value of the absolute value
     of the difference between prediction and target values:
 
-    mae = mean(|pred - target|).
+    .. math::
+      \\text{MAE} = \\mathbf{E}\\{|y_\\text{pred} - y_\\text{target}|\\}.
 
-    The mean is calculated over all results passed to the 'compute' method for
+    where the mean is calculated over all results passed to the 'compute' method for
     which the target values are finite.
     """
 
@@ -254,13 +310,15 @@ class MAE(Metric):
         return mae
 
 
-class SMAPE(Metric):
+class SMAPE(QuantificationMetric):
     """
-    The symmetric mean absolute percentage error (SMAPE).
+    The symmetric mean absolute percentage error (SMAPE) with threshold :math:`t`.
 
-    smape = mean(|pred - target| / 0.5 * (|pred| + |target|)).
+    .. math::
 
-    The mean is calculated over all results passed to the 'compute' method for
+      \\text{SMAPE}_t = \\mathbf{E}_{t \\leq y_\\text{target}}\\{\\frac{|y_\\text{pred} - y_\\text{target}|}{ 0.5 (|y_\\text{pred}| + |y_\\text{target}|)}\}
+
+    where the mean is calculated over all results passed to the 'compute' method for
     which the target values are finite and for which the absolute value of the
     exceeds the given threshold value.
     """
@@ -300,7 +358,7 @@ class SMAPE(Metric):
 
     def compute(self) -> xr.Dataset:
         """
-        Calculate the bias for all results passed to this metric object.
+        Calculate the SMAPE for all results passed to this metric object.
 
         Return:
             An xarray.Dataset containing a single, scalar variable 'smape' representing
@@ -310,17 +368,21 @@ class SMAPE(Metric):
         smape = xr.Dataset({
             "smape": 100.0 * (self.tot_rel_error / self.counts)[0]
         })
-        smape.smape.attrs["full_name"] = f"SMAPE$_{self.threshold:.2}$"
+        smape.smape.attrs["full_name"] = f"SMAPE$_{{{self.threshold:.2}}}$"
         smape.smape.attrs["unit"] = "%"
         return smape
 
 
-class MSE(Metric):
+class MSE(QuantificationMetric):
     """
     The mean-squared error calculated as the mean value of the squared difference between
-    prediction and target values: mse = mean((pred - target)^2).
+    prediction and target values:
 
-    The mean is calculated over all results passed to the 'compute' method for
+    .. math::
+
+      \\text{MSE} = (\\mathbf{E}\{y_\\text{pred} - y_\\text{target}\})^2
+
+    where mean is calculated over all results passed to the 'compute' method for
     which the target values are finite.
     """
 
@@ -351,7 +413,7 @@ class MSE(Metric):
 
     def compute(self) -> xr.Dataset:
         """
-        Calculate the bias for all results passed to this metric object.
+        Calculate the MSE for all results passed to this metric object.
 
         Return:
             An xarray.Dataset containing a single, scalar variable 'mse' representing
@@ -365,12 +427,23 @@ class MSE(Metric):
         return mse
 
 
-class CorrelationCoef(Metric):
+class CorrelationCoef(QuantificationMetric):
     """
     The linear correlation coefficient between predictions and target values.
 
-    The mean is calculated over all results passed to the 'compute' method for
-    which the target values are finite.
+    .. math::
+
+      \\text{Correlation coeff.} = \\mathbf{E}\\frac{
+      (y_\\text{pred} - \\mu_{y_\\text{pred}})(y_\\text{target} - \\mu{y_\\text{target})}
+      }{
+       \\sigma_{y_\\text{pred}} \sigma_{y_\\text{target}}
+      }
+
+
+    where the mean is calculated over all results passed to the 'compute' method for
+    which the target values are finite and :math:`\\mu` and :math:`\\sigma` are used to denote
+    the mean and standard deviations of the distributions of :math:`y_\text{pred}` and
+    :math:`y_\\text{target}`.
     """
 
     def __init__(self):
@@ -427,10 +500,10 @@ class CorrelationCoef(Metric):
 
         corr = (xy_mean - x_mean * y_mean) / (x_sigma * y_sigma)
         corr = xr.Dataset({
-            "correlation_coef": corr
+            "correlation_coef": corr[0]
         })
-        corr.attrs["full_name"] = "Correlation coeff."
-        corr.attrs["unit"] = ""
+        corr.correlation_coef.attrs["full_name"] = "Correlation coeff."
+        corr.correlation_coef.attrs["unit"] = ""
         return corr
 
 
@@ -481,12 +554,18 @@ def iterate_windows(valid, window_size):
         col_inds = col_inds[~invalid]
 
 
-class SpectralCoherence(Metric):
+class SpectralCoherence(QuantificationMetric):
     """
-    Metric to calculate spectral statistics of retrieved fields.
+    Metric to calculate spectral coherence curves and effective resolution
+    for retrieved precipitation fields. Spectral coherence and effective
+    resolution are calculated as described in:
 
-    This metrics calculates the spectral energy and coherence between
-    the retrieved and reference fields.
+    Pfreundschuh, S., Guilloteau, C., Brown, P. J., Kummerow, C. D., and Eriksson,
+    P.: GPROF V7 and beyond: assessment of current and potential future versions of
+    the GPROF passive microwave precipitation retrievals against ground radar
+    measurements over the continental US and the Pacific Ocean, Atmos. Meas. Tech.,
+    17, 515–538, https://doi.org/10.5194/amt-17-515-2024, 2024.
+
     """
     def __init__(self, window_size=32, scale=0.036):
         """
@@ -616,9 +695,15 @@ class SpectralCoherence(Metric):
         return results
 
 
-class FAR(Metric):
+class FAR(DetectionMetric):
     """
-    Metric to calculate the false alarm rate for precipitation detection.
+    Metric to calculate the false alarm rate (FAR) for precipitation detection. The
+    FAR is the fraction of false positive predictions and total number of positive
+    predictions.
+
+    .. math::
+        \\text{FAR} = \\frac{\\#\\text{False positive}}{\\#\\text{True positive} + \\#\\text{False positive}}
+
     """
     def __init__(self):
         super().__init__(buffers={
@@ -647,16 +732,24 @@ class FAR(Metric):
             evaluated retrieval.
         """
         far = self.n_false_positive / self.n_positive
-        return xr.Dataset({
+        results = xr.Dataset({
             "far": far,
             "far_samples": self.n_positive.copy()
         })
+        results.far.attrs["full_name"] = "FAR"
+        results.far.attrs["unit"] = ""
+        return results
 
 
-class POD(Metric):
+class POD(DetectionMetric):
     """
     Metric to calculate the probability of detection (POD) for precipitation
-    detection.
+    detection. The POD is the ratio of true positive predictions and the total
+    number of observed events.
+
+    .. math::
+
+        \\text{POD} = \\frac{\\#\\text{true positive}}{\\#\\text{True positive} + \\#\\text{False negative}}
     """
     def __init__(self):
         super().__init__(buffers={
@@ -685,15 +778,19 @@ class POD(Metric):
             the evaluated retrieval.
         """
         pod = self.n_true_positive / self.n_true
-        return xr.Dataset({
+        results = xr.Dataset({
             "pod": pod,
             "pod_samples": self.n_true
         })
+        results.pod.attrs["full_name"] = "POD"
+        results.pod.attrs["unit"] = ""
+        return results
 
 
-class HSS(Metric):
+class HSS(DetectionMetric):
     """
-    Metric to calculate the Heidke-Skill Score for precipitation detection.
+    Metric to calculate the Heidke-Skill Score for precipitation detection. The HSS
+    is using the formula given `here <https://resources.eumetrain.org/data/4/451/english/msg/ver_categ_forec/uos2/uos2_ko3.htm>`_.
     """
     def __init__(self):
         super().__init__(
@@ -734,15 +831,36 @@ class HSS(Metric):
         standard = n_pos / n_tot * n_true / n_tot + n_neg / n_tot * n_false / n_tot
         hss = ((self.n_tp + self.n_tn) / n_tot - standard) / (1.0 - standard)
 
-        return xr.Dataset({
+        results = xr.Dataset({
             "hss": hss,
             "pod_samples": n_tot
         })
+        results.hss.attrs["full_name"] = "HSS"
+        results.hss.attrs["unit"] = ""
+        return results
 
 
-class PRCurve(Metric):
+class PRCurve(ProbabilisticDetectionMetric):
     """
-    Calculates the precision recall curve for probabilistic detection results.
+    Calculates the precision recall curve for probabilistic detection results. The precision recall
+    curve is a probabilistic detection metrics and thus expects predictions to be probabilities
+    normalized to lie within :math:`[0, 1]`. If the probabilities are not normalized the ``range``
+    argument can be used to define a customized value range.
+
+    The precision and recall are defined as:
+
+    .. math::
+
+      \\text{Precision} = \\frac{\# \\text{True positive}}{\# \\text{True positive} + \# \\text{False positive}}
+
+    .. math::
+
+      \\text{Recall} = \\frac{\# \\text{True positive}}{\# \\text{True positive} + \# \\text{False negative}}
+
+    Both precision and recall are calculated for a range of detection thresholds, i.e., values of the
+    threshold probability above which an even is classified as positive. The values yield a curve
+    representing the trade off between recall and precision as the detection threshold is increased.
+
     """
     def __init__(
             self,
@@ -794,9 +912,17 @@ class PRCurve(Metric):
         inds = np.argsort(recall[valid])
         auc = np.trapz(precision[valid][inds], x=recall[valid][inds])
 
-        return xr.Dataset({
+        results = xr.Dataset({
             "threshold": (("threshold",), self.thresholds),
             "precision": (("threshold",), precision),
             "recall": (("threshold",), recall),
             "area_under_curve": auc,
         })
+
+        results.area_under_curve.attrs["full_name"] = "AUC"
+        results.area_under_curve.attrs["unit"] = ""
+        results.precision.attrs["full_name"] = "Precision"
+        results.precision.attrs["unit_name"] = ""
+        results.recall.attrs["full_name"] = "Recall"
+        results.recall.attrs["unit_name"] = ""
+        return results

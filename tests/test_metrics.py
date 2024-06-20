@@ -124,7 +124,6 @@ def test_bias():
     result = bias.compute()
     assert np.isclose(result.bias.data, -100.0, rtol=1e-2)
 
-
     bias = Bias(relative=False)
     tasks = []
     for _ in range(n_jobs):
@@ -264,6 +263,7 @@ def test_correlation_coef_dep():
     result = corr_coef.compute()
     assert np.isclose(result.correlation_coef.data, 1.0, atol=1e-2)
 
+    corr_coef.reset()
     corr_coef = CorrelationCoef()
     tasks = []
     for _ in range(n_jobs):

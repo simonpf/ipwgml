@@ -57,14 +57,15 @@ def test_dataset_tiler_calculate_weights(spr_gmi_evaluation):
     """
     Ensure that tiling an xarray.Dataset and reassembling the tiles reproduces the input data.
     """
-    ds_path = spr_gmi_evaluation / "spr" / "gmi" / "evaluation" / "gridded"
+    ds_path = spr_gmi_evaluation / "spr" / "gmi" / "evaluation" / "on_swath"
     files = list((ds_path / "target").glob("*.nc"))
     dataset = xr.load_dataset(files[0])
     results = dataset.copy(deep=True)
     results.surface_precip.data[:] = 0.0
+    results["weights"] = (("scan", "pixel"), np.zeros_like(results.surface_precip.data))
 
-    tiler = DatasetTiler(dataset, 256, overlap=64)
-    result_tiler = DatasetTiler(results, 256, overlap=64)
+    tiler = DatasetTiler(dataset, 64, overlap=16, spatial_dims=("scan", "pixel"))
+    result_tiler = DatasetTiler(results, 64, overlap=16, spatial_dims=("scan", "pixel"))
 
     valid = np.isfinite(dataset.surface_precip.data)
     assert not np.all(np.isclose(results.surface_precip.data[valid], dataset.surface_precip.data[valid]))
@@ -77,8 +78,10 @@ def test_dataset_tiler_calculate_weights(spr_gmi_evaluation):
             tile = tiler.get_tile(row_ind, col_ind)
             result_tile = result_tiler.get_tile(row_ind, col_ind)
             result_tile.surface_precip.data += weights * tile.surface_precip.data
+            result_tile.weights.data += weights
 
     assert np.all(np.isclose(results.surface_precip.data[valid], dataset.surface_precip.data[valid]))
+    assert np.all(np.isclose(results.weights.data, 1.0))
 
 
 def test_tiler_trivial(spr_gmi_evaluation):

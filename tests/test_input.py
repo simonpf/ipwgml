@@ -157,7 +157,6 @@ def test_geo_ir_input(spr_gmi_gridded_spatial_train):
     assert cfg.stats is not None
 
 
-@pytest.mark.skip()
 def test_geo_input(spr_gmi_gridded_spatial_train):
     """
     Test loading of GEO input data.

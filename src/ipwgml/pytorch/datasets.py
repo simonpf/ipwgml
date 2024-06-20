@@ -124,8 +124,7 @@ class SPRTabular(Dataset):
         self.target_data = xr.load_dataset(files[0])
 
         # Determine valid samples and subset data
-        surface_precip = self.target_config.load_data(self.target_data)
-        valid = np.isfinite(surface_precip)
+        valid = ~self.target_config.get_mask(self.target_data)
         self.target_data = self.target_data[{"samples": valid}]
         for inpt in self.retrieval_input:
             input_data = getattr(self, inpt.name + "_data", xr.load_dataset(files[0]))
@@ -182,7 +181,8 @@ class SPRTabular(Dataset):
             samples = self.indices[batch_start:batch_end]
 
         target_data = self.target_data[{"samples": samples}]
-        surface_precip = torch.tensor(target_data.surface_precip.data.astype(np.float32))
+        surface_precip = self.target_config.load_reference_precip(target_data).astype(np.float32)
+        surface_precip = torch.tensor(surface_precip)
         target_time = target_data.time
 
         input_data = {}
@@ -385,7 +385,7 @@ class SPRSpatial:
         """
         with xr.open_dataset(self.target[ind]) as data:
             target_time = data.time
-            target = self.target_config.load_data(data)
+            target = self.target_config.load_reference_precip(data)
             target = torch.tensor(target.astype(np.float32))
 
         input_data = {}
