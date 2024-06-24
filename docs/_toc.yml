@@ -9,7 +9,7 @@ chapters:
   sections:
     - file: notebooks/evaluate_imerg.ipynb
     - file: notebooks/evaluate_gprof.ipynb
-    - file: notebooks/pytorch/full_connected.ipynb
+    - file: notebooks/pytorch/fully_connected.ipynb
     - file: notebooks/pytorch/convolutional_neural_network.ipynb
 - file: api_documentation
   sections:
