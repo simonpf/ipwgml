@@ -6,4 +6,4 @@ International Precipitation Working Group (IPWG).
 
 ## Documentation
 
-For instructions on how to use the package refer to the documentation available [here](ipwgml.readthedocs.io).
+For instructions on how to use the package refer to the documentation available [here](https://ipwgml.readthedocs.io/en/latest/intro.html).
