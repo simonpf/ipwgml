@@ -10,8 +10,8 @@ from typing import List, Optional
 import xarray as xr
 
 BASELINES_GMI = {
-    "imerg_final_v07b_gmi": "IMERG Final V7",
-    "gprof_v07a_gmi": "GPROF V7",
+    "imerg_final_v07b_gmi": "IMERG Final V7 (GMI)",
+    "gprof_v07a_gmi": "GPROF V7 (GMI)",
 }
 
 
@@ -49,5 +49,5 @@ def load_baseline_results(
         results.append(xr.load_dataset(data_path / (baseline + ".nc")))
 
     results = xr.concat(results, dim="algorithm")
-    results["algorithm"] = (("algorithm",), list(baselines))
+    results["algorithm"] = (("algorithm",), [BASELINES[name] for name in baselines])
     return results
