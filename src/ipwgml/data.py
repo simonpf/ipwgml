@@ -4,6 +4,7 @@ ipwgml.data
 
 Provides functionality to access IPWG ML datasets.
 """
+
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 import logging
@@ -34,7 +35,7 @@ LOGGER = logging.getLogger(__name__)
 BASE_URL = "https://rain.atmos.colostate.edu/gprof_nn/ipwgml"
 
 
-FILE_REGEXP = re.compile("a href=\"([\w_]*\.nc)\"")
+FILE_REGEXP = re.compile('a href="([\w_]*\.nc)"')
 
 
 def list_files(relative_path: str, base_url: Optional[str] = None) -> List[str]:
@@ -63,6 +64,10 @@ def list_files(relative_path: str, base_url: Optional[str] = None) -> List[str]:
 def download_file(url: str, destination: Path) -> None:
     """
     Download file from server.
+
+    Args:
+        url: A string containing the URL of the file to download.
+        destination: The destination to which to write the file.
     """
     with requests.get(url, stream=True) as response:
         response.raise_for_status()
@@ -85,11 +90,11 @@ def progress_bar_or_not(progress_bar: bool) -> Progress | None:
 
 
 def download_files(
-        files: List[str],
-        destination: Path,
-        progress_bar: bool = True,
-        retries: int = 3,
-        base_url: Optional[str] = None
+    files: List[str],
+    destination: Path,
+    progress_bar: bool = True,
+    retries: int = 3,
+    base_url: Optional[str] = None,
 ) -> None:
     """
     Download files using multiple threads.
@@ -125,7 +130,7 @@ def download_files(
         failed = []
         for path in files:
             *path, fname = path.split("/")
-            path =  "/".join(path)
+            path = "/".join(path)
             output_path = destination / path
             output_path.mkdir(parents=True, exist_ok=True)
             url = base_url + "/" + str(path) + "/" + fname
@@ -134,7 +139,9 @@ def download_files(
         with progress_bar_or_not(progress_bar=progress_bar) as progress:
             if progress is not None:
                 rel_path = "/".join(next(iter(files)).split("/")[:-1])
-                bar = progress.add_task(f"Downloading files from {rel_path}:", total=len(files))
+                bar = progress.add_task(
+                    f"Downloading files from {rel_path}:", total=len(files)
+                )
             else:
                 bar = None
 
@@ -147,7 +154,7 @@ def download_files(
                 except Exception:
                     LOGGER.exception(
                         "Encountered an error when trying to download files %s.",
-                        path.split("/")[-1]
+                        path.split("/")[-1],
                     )
                     failed.append(path)
 
@@ -158,15 +165,15 @@ def download_files(
         LOGGER.warning(
             "The download of the following files failed: %s. If the issue persists please consider "
             "submitting an issue at github.com/simonpf/ipwgml.",
-            failed
+            failed,
         )
 
 
 def download_missing(
-        dataset: str,
-        destination: Path,
-        base_url: Optional[str] = None,
-        progress_bar: bool = False
+    dataset: str,
+    destination: Path,
+    base_url: Optional[str] = None,
+    progress_bar: bool = False,
 ) -> None:
     """
     Download missing file from dataset.
@@ -176,7 +183,12 @@ def download_missing(
         destination: Path pointing to the local directory containing the IPWGML data.
         base_url: If give, will overwrite the globally defined default URL.
     """
-    local_files = set([str(path.relative_to(destination)) for path in (destination / dataset).glob("*.nc")])
+    local_files = set(
+        [
+            str(path.relative_to(destination))
+            for path in (destination / dataset).glob("*.nc")
+        ]
+    )
     remote_files = set(list_files(dataset, base_url=base_url))
     missing = remote_files - local_files
     download_files(missing, destination, base_url=base_url, progress_bar=progress_bar)
@@ -190,12 +202,12 @@ def download_missing(
 @click.option("--splits", type=str, default=None)
 @click.option("--inputs", type=str, default=None)
 def cli(
-        data_path: Optional[str] = None,
-        sensors: Optional[str] = None,
-        geometries: Optional[str] = None,
-        formats: Optional[str] = None,
-        splits: Optional[str] = None,
-        inputs: Optional[str] = None
+    data_path: Optional[str] = None,
+    sensors: Optional[str] = None,
+    geometries: Optional[str] = None,
+    formats: Optional[str] = None,
+    splits: Optional[str] = None,
+    inputs: Optional[str] = None,
 ):
     """
     Download the SPR benchmark dataset.
@@ -207,9 +219,7 @@ def cli(
     else:
         data_path = Path(data_path)
         if not data_path.exists():
-            LOGGER.error(
-                "The provided 'data_path' does not exist."
-            )
+            LOGGER.error("The provided 'data_path' does not exist.")
             return 1
 
     if sensors is None:
@@ -274,7 +284,6 @@ def cli(
 
     LOGGER.info(f"Starting data download to {data_path}.")
 
-
     for sensor in sensors:
         for geometry in geometries:
             for inpt in inputs + ["target"]:
@@ -314,7 +323,6 @@ def list_local_files_rec(path: Path) -> Dict[str, Any]:
         if child.is_dir():
             files[child.name] = list_local_files_rec(child)
     return files
-
 
 
 def list_local_files() -> Dict[str, Any]:

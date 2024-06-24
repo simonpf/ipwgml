@@ -4,6 +4,7 @@ ipwgml.baselines
 
 This module provides access to results from baseline retrievals.
 """
+
 from pathlib import Path
 from typing import List, Optional
 
@@ -16,9 +17,7 @@ BASELINES_GMI = {
 
 
 def load_baseline_results(
-        sensor: str,
-        baselines: Optional[List[str]] = None
-
+    sensor: str, baselines: Optional[List[str]] = None
 ) -> xr.Dataset:
     """
     Load baseline results.
@@ -41,10 +40,7 @@ def load_baseline_results(
     results = []
     for baseline in baselines:
         if baseline not in BASELINES:
-            raise ValueError(
-                "Encountered unsupported baseline name '%s'.",
-                baseline
-            )
+            raise ValueError("Encountered unsupported baseline name '%s'.", baseline)
 
         results.append(xr.load_dataset(data_path / (baseline + ".nc")))
 
