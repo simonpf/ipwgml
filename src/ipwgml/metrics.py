@@ -33,6 +33,7 @@ holds the metrics to track in its ``precip_quantification_metrics``,
 
 The metrics are used by the :class:`ipgml.evaluation.Evaluator` to
 """
+
 from multiprocessing import shared_memory, Lock, Manager
 from typing import Any, Dict, Optional, Tuple
 
@@ -43,6 +44,7 @@ import xarray as xr
 
 
 _MANAGER = None
+
 
 def get_manager() -> Manager:
     """
@@ -60,10 +62,8 @@ class Metric:
     access to those arrays.
 
     """
-    def __init__(
-            self,
-            buffers: Dict[str, Tuple[Tuple[int], str]]
-    ):
+
+    def __init__(self, buffers: Dict[str, Tuple[Tuple[int], str]]):
         super().__init__()
         self.lock = get_manager().Lock()
         self._buffers = {}
@@ -84,8 +84,9 @@ class Metric:
                     shm = shared_memory.SharedMemory(shm)
                 buffers[name] = (shm, shape, dtype)
                 return np.ndarray(shape, dtype=dtype, buffer=shm.buf)
-        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
-
+        raise AttributeError(
+            f"'{type(self).__name__}' object has no attribute '{name}'"
+        )
 
     def reset(self) -> None:
         """
@@ -100,7 +101,6 @@ class Metric:
             array = getattr(self, name)
             array[:] = 0.0
 
-
     def cleanup(self) -> None:
         """
         Remove shared memory
@@ -111,7 +111,6 @@ class Metric:
                 if isinstance(shm, str):
                     shm = shared_memory.SharedMemory(shm)
                 shm.unlink()
-
 
     def __del__(self):
         """
@@ -125,7 +124,7 @@ class Metric:
                 shm.close()
                 if self.owner:
                     pass
-                    #shm.unlink()
+                    # shm.unlink()
 
 
 class QuantificationMetric(Metric):
@@ -133,15 +132,18 @@ class QuantificationMetric(Metric):
     Helper class to identify metrics to assess precipitation quantification.
     """
 
+
 class DetectionMetric(Metric):
     """
     Helper class to identify metrics to assess precipitation detection.
     """
 
+
 class ProbabilisticDetectionMetric(Metric):
     """
     Helper class to identify metrics to assess probabilistic precipitation detection.
     """
+
 
 class ValidFraction(QuantificationMetric):
     """
@@ -181,9 +183,7 @@ class ValidFraction(QuantificationMetric):
             fraction of valid retrievals.
         """
         valid_fraction = 1.0 - self.invalid / self.counts
-        valid_fraction = xr.Dataset(
-            {"valid_fraction": valid_fraction[0]}
-        )
+        valid_fraction = xr.Dataset({"valid_fraction": valid_fraction[0]})
         valid_fraction.valid_fraction.attrs["full_name"] = "Valid fraction"
         valid_fraction.valid_fraction.attrs["unit"] = ""
         return valid_fraction
@@ -202,10 +202,7 @@ class Bias(QuantificationMetric):
     which the target values are finite.
     """
 
-    def __init__(
-            self,
-            relative: bool = True
-    ):
+    def __init__(self, relative: bool = True):
         """
         Args:
             relative: If True, the bias is calculated as percent of the mean reference
@@ -302,9 +299,7 @@ class MAE(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'mae' containing
             the MAE for all assessed estimates.
         """
-        mae = xr.Dataset({
-            "mae": (self.tot_abs_error / self.counts)[0]
-        })
+        mae = xr.Dataset({"mae": (self.tot_abs_error / self.counts)[0]})
         mae.mae.attrs["full_name"] = "MAE"
         mae.mae.attrs["unit"] = "mm h^{-1}"
         return mae
@@ -322,6 +317,7 @@ class SMAPE(QuantificationMetric):
     which the target values are finite and for which the absolute value of the
     exceeds the given threshold value.
     """
+
     def __init__(self, threshold: float = 0.1):
         """
         Args:
@@ -365,11 +361,9 @@ class SMAPE(QuantificationMetric):
             the SMAPE calculated over all results passed to this metric object.
 
         """
-        smape = xr.Dataset({
-            "smape": 100.0 * (self.tot_rel_error / self.counts)[0]
-        })
+        smape = xr.Dataset({"smape": 100.0 * (self.tot_rel_error / self.counts)[0]})
         smape.smape.attrs["full_name"] = f"SMAPE$_{{{self.threshold:.2}}}$"
-        smape.smape.attrs["unit"] = "%"
+        smape.smape.attrs["unit"] = "\%"
         return smape
 
 
@@ -419,9 +413,7 @@ class MSE(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'mse' representing
             the MSE calculated over all results passed to this metric object.
         """
-        mse = xr.Dataset({
-            "mse": (self.tot_sq_error / self.counts)[0]
-        })
+        mse = xr.Dataset({"mse": (self.tot_sq_error / self.counts)[0]})
         mse.mse.attrs["full_name"] = "MSE"
         mse.mse.attrs["unit"] = "(mm h^{-1})^2"
         return mse
@@ -474,9 +466,9 @@ class CorrelationCoef(QuantificationMetric):
 
         with self.lock:
             self.x_sum += pred.sum()
-            self.x2_sum += (pred ** 2).sum()
+            self.x2_sum += (pred**2).sum()
             self.y_sum += target.sum()
-            self.y2_sum += (target ** 2).sum()
+            self.y2_sum += (target**2).sum()
             self.xy_sum += (pred * target).sum()
             self.counts += valid.sum()
 
@@ -490,22 +482,19 @@ class CorrelationCoef(QuantificationMetric):
         """
         x_mean = self.x_sum / self.counts
         x2_mean = self.x2_sum / self.counts
-        x_sigma = np.sqrt(x2_mean - x_mean ** 2)
+        x_sigma = np.sqrt(x2_mean - x_mean**2)
 
         y_mean = self.y_sum / self.counts
         y2_mean = self.y2_sum / self.counts
-        y_sigma = np.sqrt(y2_mean - y_mean ** 2)
+        y_sigma = np.sqrt(y2_mean - y_mean**2)
 
         xy_mean = self.xy_sum / self.counts
 
         corr = (xy_mean - x_mean * y_mean) / (x_sigma * y_sigma)
-        corr = xr.Dataset({
-            "correlation_coef": corr[0]
-        })
+        corr = xr.Dataset({"correlation_coef": corr[0]})
         corr.correlation_coef.attrs["full_name"] = "Correlation coeff."
         corr.correlation_coef.attrs["unit"] = ""
         return corr
-
 
 
 def iterate_windows(valid, window_size):
@@ -545,10 +534,10 @@ def iterate_windows(valid, window_size):
         col_lim_upper = col_end + window_size // 2
 
         invalid = (
-            (row_inds > row_lim_lower) *
-            (row_inds <= row_lim_upper) *
-            (col_inds > col_lim_lower) *
-            (col_inds <= col_lim_upper)
+            (row_inds > row_lim_lower)
+            * (row_inds <= row_lim_upper)
+            * (col_inds > col_lim_lower)
+            * (col_inds <= col_lim_upper)
         )
         row_inds = row_inds[~invalid]
         col_inds = col_inds[~invalid]
@@ -567,7 +556,8 @@ class SpectralCoherence(QuantificationMetric):
     17, 515–538, https://doi.org/10.5194/amt-17-515-2024, 2024.
 
     """
-    def __init__(self, window_size=32, scale=0.036):
+
+    def __init__(self, window_size=48, scale=0.036):
         """
         Args:
             window_size: The size of the window over which the spectral
@@ -578,18 +568,19 @@ class SpectralCoherence(QuantificationMetric):
         """
         self.window_size = window_size
         self.scale = scale
-        super().__init__(buffers={
-            "coeffs_target_sum": ((window_size,) * 2, np.float64),
-            "coeffs_target_sum2": ((window_size,) * 2, np.float64),
-            "coeffs_pred_sum": ((window_size,) * 2, np.float64),
-            "coeffs_pred_sum2": ((window_size,) * 2, np.float64),
-            "coeffs_targetpred_sum": ((window_size,) * 2, np.float64),
-            "coeffs_targetpred_sum2": ((window_size,) * 2, np.float64),
-            "coeffs_diff_sum": ((window_size,) * 2, np.float64),
-            "coeffs_diff_sum2": ((window_size,) * 2, np.float64),
-            "counts": ((window_size,) * 2, np.int64),
-        })
-
+        super().__init__(
+            buffers={
+                "coeffs_target_sum": ((window_size,) * 2, np.float64),
+                "coeffs_target_sum2": ((window_size,) * 2, np.float64),
+                "coeffs_pred_sum": ((window_size,) * 2, np.float64),
+                "coeffs_pred_sum2": ((window_size,) * 2, np.float64),
+                "coeffs_targetpred_sum": ((window_size,) * 2, np.float64),
+                "coeffs_targetpred_sum2": ((window_size,) * 2, np.float64),
+                "coeffs_diff_sum": ((window_size,) * 2, np.float64),
+                "coeffs_diff_sum2": ((window_size,) * 2, np.float64),
+                "counts": ((window_size,) * 2, np.int64),
+            }
+        )
 
     def update(self, pred: np.ndarray, target: np.ndarray):
         """
@@ -648,18 +639,15 @@ class SpectralCoherence(QuantificationMetric):
         pred_mean = w_pred_s / counts
         targetpred_mean = w_targetpred_s / counts
         cc = (
-            (targetpred_mean - target_mean * pred_mean) /
-            (np.sqrt(sigma_target) * np.sqrt(sigma_pred))
+            (targetpred_mean - target_mean * pred_mean)
+            / (np.sqrt(sigma_target) * np.sqrt(sigma_pred))
         ).real
         co = np.abs(w_targetpred_s) / (np.sqrt(w_target_s2) * np.sqrt(w_pred_s2))
         co = co.real
 
         n_y = 0.5 * np.arange(sigma_target.shape[0])
         n_x = 0.5 * np.arange(sigma_target.shape[1])
-        n = np.sqrt(
-            n_x.reshape(1, -1) ** 2 +
-            n_y.reshape(-1, 1) ** 2
-        )
+        n = np.sqrt(n_x.reshape(1, -1) ** 2 + n_y.reshape(-1, 1) ** 2)
         bins = np.arange(min(n_y.max(), n_x.max()) + 1) - 0.5
         counts, _ = np.histogram(n, bins)
 
@@ -677,17 +665,19 @@ class SpectralCoherence(QuantificationMetric):
         scales = 0.5 * (N - 1) * self.scale / n
 
         inds = np.argsort(scales[1:])
-        resolved = np.where(coherence[1:][inds] > np.sqrt(1/ 2))[0]
+        resolved = np.where(coherence[1:][inds] > np.sqrt(1 / 2))[0]
         if len(resolved) == 0:
             res = np.inf
         else:
             res = scales[1:][inds][resolved[0]]
 
-        results = xr.Dataset({
-            "scales": (("scales",), scales),
-            "spectral_coherence": (("scales"), coherence),
-            "effective_resolution": res
-        })
+        results = xr.Dataset(
+            {
+                "scales": (("scales",), scales),
+                "spectral_coherence": (("scales"), coherence),
+                "effective_resolution": res,
+            }
+        )
         results.spectral_coherence.attrs["full_name"] = "Spectral coherence"
         results.spectral_coherence.attrs["unit"] = ""
         results.effective_resolution.attrs["full_name"] = "Effective resolution"
@@ -705,12 +695,14 @@ class FAR(DetectionMetric):
         \\text{FAR} = \\frac{\\#\\text{False positive}}{\\#\\text{True positive} + \\#\\text{False positive}}
 
     """
-    def __init__(self):
-        super().__init__(buffers={
-            "n_positive": ((1,), np.int64),
-            "n_false_positive": ((1,), np.int64),
-        })
 
+    def __init__(self):
+        super().__init__(
+            buffers={
+                "n_positive": ((1,), np.int64),
+                "n_false_positive": ((1,), np.int64),
+            }
+        )
 
     def update(self, pred: np.ndarray, target: np.ndarray):
         """
@@ -724,7 +716,6 @@ class FAR(DetectionMetric):
             self.n_false_positive += (positive * ~true).astype(np.int64).sum()
             self.n_positive += positive.astype(np.int64).sum()
 
-
     def compute(self, name: Optional[str] = None):
         """
         Return:
@@ -732,10 +723,11 @@ class FAR(DetectionMetric):
             evaluated retrieval.
         """
         far = self.n_false_positive / self.n_positive
-        results = xr.Dataset({
-            "far": far,
-            "far_samples": self.n_positive.copy()
-        })
+        results = xr.Dataset(
+            {
+                "far": far[0],
+            }
+        )
         results.far.attrs["full_name"] = "FAR"
         results.far.attrs["unit"] = ""
         return results
@@ -751,12 +743,14 @@ class POD(DetectionMetric):
 
         \\text{POD} = \\frac{\\#\\text{true positive}}{\\#\\text{True positive} + \\#\\text{False negative}}
     """
-    def __init__(self):
-        super().__init__(buffers={
-            "n_true": ((1,), np.int64),
-            "n_true_positive": ((1,), np.int64),
-        })
 
+    def __init__(self):
+        super().__init__(
+            buffers={
+                "n_true": ((1,), np.int64),
+                "n_true_positive": ((1,), np.int64),
+            }
+        )
 
     def update(self, pred: np.ndarray, target: np.ndarray):
         """
@@ -770,7 +764,6 @@ class POD(DetectionMetric):
             self.n_true_positive += (positive * true).astype(np.int64).sum()
             self.n_true += true.astype(np.int64).sum()
 
-
     def compute(self, name: Optional[str] = None):
         """
         Return:
@@ -778,10 +771,11 @@ class POD(DetectionMetric):
             the evaluated retrieval.
         """
         pod = self.n_true_positive / self.n_true
-        results = xr.Dataset({
-            "pod": pod,
-            "pod_samples": self.n_true
-        })
+        results = xr.Dataset(
+            {
+                "pod": pod[0],
+            }
+        )
         results.pod.attrs["full_name"] = "POD"
         results.pod.attrs["unit"] = ""
         return results
@@ -792,6 +786,7 @@ class HSS(DetectionMetric):
     Metric to calculate the Heidke-Skill Score for precipitation detection. The HSS
     is using the formula given `here <https://resources.eumetrain.org/data/4/451/english/msg/ver_categ_forec/uos2/uos2_ko3.htm>`_.
     """
+
     def __init__(self):
         super().__init__(
             buffers={
@@ -831,10 +826,11 @@ class HSS(DetectionMetric):
         standard = n_pos / n_tot * n_true / n_tot + n_neg / n_tot * n_false / n_tot
         hss = ((self.n_tp + self.n_tn) / n_tot - standard) / (1.0 - standard)
 
-        results = xr.Dataset({
-            "hss": hss,
-            "pod_samples": n_tot
-        })
+        results = xr.Dataset(
+            {
+                "hss": hss[0],
+            }
+        )
         results.hss.attrs["full_name"] = "HSS"
         results.hss.attrs["unit"] = ""
         return results
@@ -862,11 +858,12 @@ class PRCurve(ProbabilisticDetectionMetric):
     representing the trade off between recall and precision as the detection threshold is increased.
 
     """
+
     def __init__(
-            self,
-            n_bins: int = 100,
-            range: Tuple[float, float] = (0.0, 1.0),
-            logarithmic: bool = False
+        self,
+        n_bins: int = 100,
+        range: Tuple[float, float] = (0.0, 1.0),
+        logarithmic: bool = False,
     ):
         if logarithmic:
             self.thresholds = np.logspace(*range, n_bins)
@@ -912,12 +909,14 @@ class PRCurve(ProbabilisticDetectionMetric):
         inds = np.argsort(recall[valid])
         auc = np.trapz(precision[valid][inds], x=recall[valid][inds])
 
-        results = xr.Dataset({
-            "threshold": (("threshold",), self.thresholds),
-            "precision": (("threshold",), precision),
-            "recall": (("threshold",), recall),
-            "area_under_curve": auc,
-        })
+        results = xr.Dataset(
+            {
+                "threshold": (("threshold",), self.thresholds),
+                "precision": (("threshold",), precision),
+                "recall": (("threshold",), recall),
+                "area_under_curve": auc,
+            }
+        )
 
         results.area_under_curve.attrs["full_name"] = "AUC"
         results.area_under_curve.attrs["unit"] = ""
