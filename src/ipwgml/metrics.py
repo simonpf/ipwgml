@@ -557,7 +557,7 @@ class SpectralCoherence(QuantificationMetric):
 
     """
 
-    def __init__(self, window_size=48, scale=0.036):
+    def __init__(self, window_size=32, scale=0.036):
         """
         Args:
             window_size: The size of the window over which the spectral
