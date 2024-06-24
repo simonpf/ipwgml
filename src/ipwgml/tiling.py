@@ -4,6 +4,7 @@ ipwgml.tiling
 
 Provides functionality for tiling input data and assembling tiled results.
 """
+
 from typing import List, Optional, Tuple, Union
 
 import numpy as np
@@ -12,9 +13,7 @@ import xarray as xr
 
 
 def get_starts_and_clips(
-        extent: int,
-        tile_size: int,
-        overlap: int
+    extent: int, tile_size: int, overlap: int
 ) -> Tuple[List[int], List[int]]:
     """
     Calculate start indices and numbers of clipped pixels for a given
@@ -48,12 +47,13 @@ class DatasetTiler:
     """
     This tiler provides functionality for tiling an xarray.Dataset into equal-sized tiles.
     """
+
     def __init__(
-            self,
-            dataset: xr.Dataset,
-            tile_size: int | None = 512,
-            overlap: int = 32,
-            spatial_dims: Optional[Tuple[str, str]] = None
+        self,
+        dataset: xr.Dataset,
+        tile_size: int | None = 512,
+        overlap: int = 32,
+        spatial_dims: Optional[Tuple[str, str]] = None,
     ):
         """
         Args:
@@ -131,7 +131,6 @@ class DatasetTiler:
         }
         return self.dataset[slices]
 
-
     def get_slices(self, row_ind: int, col_ind) -> Tuple[slice, slice]:
         """
         Return slices for the clipping of the tiles.
@@ -164,17 +163,10 @@ class DatasetTiler:
             col_clip_r = self.tile_size[1] - self.col_clips[col_ind]
         slice_col = slice(col_clip_l, col_clip_r)
 
-        return {
-            self.spatial_dims[0]: slice_row,
-            self.spatial_dims[1]: slice_col
-        }
-
+        return {self.spatial_dims[0]: slice_row, self.spatial_dims[1]: slice_col}
 
     def get_weights(
-            self,
-            row_ind: int,
-            col_ind,
-            like: Optional[np.ndarray] = None
+        self, row_ind: int, col_ind, like: Optional[np.ndarray] = None
     ) -> Union[np.ndarray, torch.Tensor]:
         """
         Get weights to reassemble results.
@@ -201,15 +193,22 @@ class DatasetTiler:
             # Limit transition zone to overlap.
             l_trans = min(trans_end - trans_start, self.overlap)
             w_rows[:zeros] = 0.0
-            w_rows[zeros : zeros + l_trans] = np.linspace(0, 1, l_trans)[..., np.newaxis]
+            w_rows[zeros : zeros + l_trans] = np.linspace(0, 1, l_trans)[
+                ..., np.newaxis
+            ]
 
         if row_ind < self.n_rows_tiled - 1:
             trans_start = self.row_starts[row_ind + 1]
-            trans_end = self.row_starts[row_ind] + self.tile_size[0]
+            if row_ind > 0:
+                trans_end_prev = self.row_starts[row_ind - 1] + self.tile_size[1]
+                trans_start = max(trans_start, trans_end_prev)
+            trans_end = self.row_starts[row_ind] + self.tile_size[1]
             l_trans = min(trans_end - trans_start, self.overlap)
 
             start = trans_start - self.row_starts[row_ind]
-            w_rows[start : start + l_trans] = np.linspace(1, 0, l_trans)[..., np.newaxis]
+            w_rows[start : start + l_trans] = np.linspace(1, 0, l_trans)[
+                ..., np.newaxis
+            ]
             w_rows[start + l_trans :] = 0.0
 
         w_cols = np.ones((n_rows, n_cols))
@@ -257,7 +256,6 @@ class DatasetTiler:
                 self.assemble_tile(i, j, results, tle)
         return results
 
-
     def initialize_results(self, results_t):
         """
         Initialize containers for assembled results from the results from
@@ -275,10 +273,7 @@ class DatasetTiler:
         if isinstance(results_t, tuple):
             return tuple([self.initialize_results(res) for res in results_t])
         if isinstance(results_t, dict):
-            return {
-                key: self.initialize_results(val)
-                for key, val in results_t.items()
-            }
+            return {key: self.initialize_results(val) for key, val in results_t.items()}
         res = results_t
 
         ds_row = self.tile_size[0] / res.shape[-2]
@@ -287,7 +282,6 @@ class DatasetTiler:
         if isinstance(res, torch.Tensor):
             return torch.zeros(shape, dtype=res.dtype, device=res.device)
         return np.zeros(shape, dtype=res.dtype)
-
 
     def assemble_tile(self, row_index, col_index, results, results_t):
         """
@@ -304,9 +298,7 @@ class DatasetTiler:
         if isinstance(results, (list, tuple)):
             assembled = []
             for res, res_t in zip(results, results_t):
-                assembled.append(
-                    self.assemble_tile(row_index, col_index, res, res_t)
-                )
+                assembled.append(self.assemble_tile(row_index, col_index, res, res_t))
             if isinstance(results, tuple):
                 return tuple(assembled)
             return assembled
@@ -315,14 +307,8 @@ class DatasetTiler:
             for key in results_t.keys():
                 res = results[key]
                 res_t = results_t[key]
-                assembled[key] = self.assemble_tile(
-                    row_index,
-                    col_index,
-                    res,
-                    res_t
-                )
+                assembled[key] = self.assemble_tile(row_index, col_index, res, res_t)
             return assembled
-
 
         ds_row = self.tile_size[0] // results_t.shape[-2]
         ds_col = self.tile_size[1] // results_t.shape[-1]
@@ -336,12 +322,11 @@ class DatasetTiler:
             j_end = min(self.n, j_end)
 
         # modulo self.n in case self.wrap_columns is True
-        col_slice = (
-            np.arange(j_start // ds_col, j_end // ds_col) %
-            (self.n // ds_col)
-        )
+        col_slice = np.arange(j_start // ds_col, j_end // ds_col) % (self.n // ds_col)
 
-        wgts = self.get_weights(row_index, col_index, like=results_t)[..., ::ds_row, ::ds_col]
+        wgts = self.get_weights(row_index, col_index, like=results_t)[
+            ..., ::ds_row, ::ds_col
+        ]
 
         if self.i_pad is not None:
             i_pad = slice(self.i_pad[0] // ds_row, -self.i_pad[-1] // ds_row)
@@ -356,8 +341,9 @@ class DatasetTiler:
         else:
             j_pad = slice(0, None)
 
-        results[..., row_slice, col_slice] += wgts[..., i_pad, j_pad] * results_t[..., i_pad, j_pad]
-
+        results[..., row_slice, col_slice] += (
+            wgts[..., i_pad, j_pad] * results_t[..., i_pad, j_pad]
+        )
 
     def __iter__(self):
 
@@ -402,7 +388,6 @@ class DatasetTiler:
         except StopIteration as exc:
             results = exc.value
         return results
-
 
     def __repr__(self):
         return f"Tiler(tile_size={self.tile_size}, overlap={self.overlap})"
