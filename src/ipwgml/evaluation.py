@@ -35,6 +35,7 @@ import pandas as pd
 from rich.progress import Progress, track
 import xarray as xr
 
+from ipwgml import baselines
 from ipwgml import config
 from ipwgml.data import download_missing
 import ipwgml.logging
@@ -66,18 +67,14 @@ def get_expected_dims(input_data: xr.Dataset) -> Tuple[str]:
     else:
         dims = spatial_dims
 
-    if "samples" in input_data.dims:
-        dims = ("samples",)
-
     return dims
 
 
-
 def _check_retrieval_results(
-        input_data: xr.Dataset,
-        retrieved: xr.Dataset,
-        expected_dims: List[str],
-        verbose: bool = False
+    input_data: xr.Dataset,
+    retrieved: xr.Dataset,
+    expected_dims: List[str],
+    verbose: bool = False,
 ) -> None:
     """
     Check retrieval results returned from 'retrieval_fn'.
@@ -92,16 +89,17 @@ def _check_retrieval_results(
     if set(expected_dims) != set(retrieved.dims):
         msg = (
             "Results returned from 'retrieval_fn' should have the same "
-            f"dimenions as the input data ({expected_dims})."
+            f"dimenions as the input data ({expected_dims}) but have "
+            f"dimensions {list(retrieved.dims)}."
         )
         raise RuntimeError(msg)
 
     for dim in expected_dims:
         if retrieved.sizes[dim] != input_data.sizes[dim]:
             msg = (
-                f"The extent ({retrieved.sizes(dim)}) of retrieval results "
+                f"The extent ({retrieved.sizes[dim]}) of retrieval results "
                 f" along dimensions '{dim}' is inconsistent with the input "
-                f"data ({input_data.sizes(dim)})."
+                f"data ({input_data.sizes[dim]})."
             )
             raise RuntimeError(msg)
 
@@ -135,7 +133,6 @@ def _check_retrieval_results(
         )
         if verbose:
             LOGGER.warning(msg)
-
 
 
 def process(
@@ -438,33 +435,33 @@ def process_scene_tabular(
     spatial_dims = [dim for dim in spatial_dims if dim in input_data.dims]
     shape = tuple([input_data[dim].size for dim in spatial_dims])
 
-    input_data_flat = input_data.stack({"samples": spatial_dims}).copy(deep=True)
-    n_samples = input_data_flat.samples.size
+    input_data_flat = input_data.stack({"batch": spatial_dims}).copy(deep=True)
+    n_samples = input_data_flat.batch.size
     if batch_size is None:
         batch_size = n_samples
 
     input_data_flat["surface_precip"] = (
-        ("samples",),
+        ("batch",),
         np.zeros(n_samples, dtype=np.float32),
     )
     input_data_flat["probability_of_precip"] = (
-        ("samples",),
+        ("batch",),
         np.zeros(n_samples, dtype=np.float32),
     )
     input_data_flat["probability_of_heavy_precip"] = (
-        ("samples",),
+        ("batch",),
         np.zeros(n_samples, dtype=np.float32),
     )
-    input_data_flat["precip_flag"] = (("samples",), np.zeros(n_samples, dtype=bool))
+    input_data_flat["precip_flag"] = (("batch",), np.zeros(n_samples, dtype=bool))
     input_data_flat["heavy_precip_flag"] = (
-        ("samples",),
+        ("batch",),
         np.zeros(n_samples, dtype=bool),
     )
 
     batch_start = 0
     vars_retrieved = []
     while batch_start < n_samples:
-        inds = {"samples": slice(batch_start, batch_start + batch_size)}
+        inds = {"batch": slice(batch_start, batch_start + batch_size)}
         batch = input_data_flat[inds]
         retrieved = retrieval_fn(batch)
         for var in [
@@ -499,10 +496,10 @@ class InputFiles:
     atms_file_on_swath: Path
     ancillary_file_gridded: Path
     ancillary_file_on_swath: Path
-    geo_ir_file_gridded: Optional[Path]
-    geo_ir_file_on_swath: Optional[Path]
     geo_file_gridded: Optional[Path]
     geo_file_on_swath: Optional[Path]
+    geo_ir_file_gridded: Optional[Path]
+    geo_ir_file_on_swath: Optional[Path]
 
     def get_path(self, name: str, geometry: str) -> Path | None:
         """
@@ -526,7 +523,6 @@ class InputFiles:
                 "'gridded')."
             )
         return getattr(self, f"{name}_file_{geometry}")
-
 
 
 def evaluate_scene(
@@ -598,7 +594,6 @@ def evaluate_scene(
             input_data=input_data, batch_size=batch_size, retrieval_fn=retrieval_fn
         )
 
-
     with xr.open_dataset(input_files.target_file_gridded) as target_data:
 
         scan_inds = target_data.scan_index
@@ -608,6 +603,14 @@ def evaluate_scene(
             if "latitude" in results:
                 results = results.drop_vars(["latitude", "longitude"])
             results = results[{"scan": scan_inds, "pixel": pixel_inds}]
+            invalid = pixel_inds.data < 0
+            for var in [
+                "surface_precip",
+                "probability_of_precip",
+                "probability_of_heavy_precip",
+            ]:
+                if var in results:
+                    results[var].data[invalid] = np.nan
 
         surface_precip_ref = target_config.load_reference_precip(target_data)
         invalid_mask = target_config.get_mask(target_data)
@@ -626,26 +629,36 @@ def evaluate_scene(
         if "precip_flag" in results:
             precip_flag_ref = target_config.load_precip_mask(target_data)
             for metric in precip_detection_metrics:
-                metric.update(results.precip_flag.data[valid_mask], precip_flag_ref[valid_mask])
+                metric.update(
+                    results.precip_flag.data[valid_mask], precip_flag_ref[valid_mask]
+                )
         if "probability_of_precip" in results:
             if precip_flag_ref is None:
                 precip_flag_ref = target_config.load_precip_mask(target_data)
             for metric in prob_precip_detection_metrics:
-                metric.update(results.probability_of_precip.data[valid_mask], precip_flag_ref[valid_mask])
+                metric.update(
+                    results.probability_of_precip.data[valid_mask],
+                    precip_flag_ref[valid_mask],
+                )
 
         heavy_precip_flag_ref = None
         if "heavy_precip_flag" in results:
             heavy_precip_flag_ref = target_config.load_heavy_precip_mask(target_data)
             for metric in heavy_precip_detection_metrics:
-                metric.update(results.heavy_precip_flag.data[valid_mask], heavy_precip_flag_ref[valid_mask])
+                metric.update(
+                    results.heavy_precip_flag.data[valid_mask],
+                    heavy_precip_flag_ref[valid_mask],
+                )
         if "probability_of_heavy_precip" in results:
             if heavy_precip_flag_ref is None:
-                heavy_precip_flag_ref = target_config.load_heavy_precip_mask(target_data)
+                heavy_precip_flag_ref = target_config.load_heavy_precip_mask(
+                    target_data
+                )
             for metric in prob_heavy_precip_detection_metrics:
                 metric.update(
                     results.probability_of_heavy_precip.data[valid_mask],
-                    heavy_precip_flag_ref[valid_mask])
-
+                    heavy_precip_flag_ref[valid_mask],
+                )
 
         aux_vars = [
             "radar_quality_index",
@@ -842,7 +855,7 @@ class Evaluator:
         """
         List containing the metrics used to evaluate the detection of heavy precipitation.
         """
-        return self._precip_detection_metrics
+        return self._heavy_precip_detection_metrics
 
     @heavy_precip_detection_metrics.setter
     def set_heavy_precip_detection_metrics(self, metrics: List[str | Metric]):
@@ -956,7 +969,6 @@ class Evaluator:
         )
         return input_data
 
-
     def evaluate_scene(
         self,
         index: int,
@@ -991,7 +1003,9 @@ class Evaluator:
             precip_detection_metrics = self.precip_detection_metrics
             prob_precip_detection_metrics = self.prob_precip_detection_metrics
             heavy_precip_detection_metrics = self.heavy_precip_detection_metrics
-            prob_heavy_precip_detection_metrics = self.prob_heavy_precip_detection_metrics
+            prob_heavy_precip_detection_metrics = (
+                self.prob_heavy_precip_detection_metrics
+            )
         else:
             precip_quantification_metrics = []
             precip_detection_metrics = []
@@ -1050,6 +1064,16 @@ class Evaluator:
                 description="Evaluating retrieval",
                 console=ipwgml.logging.get_console(),
             ):
+                self.evaluate_scene(
+                    index=scene_ind,
+                    tile_size=tile_size,
+                    overlap=overlap,
+                    batch_size=batch_size,
+                    retrieval_fn=retrieval_fn,
+                    input_data_format=input_data_format,
+                    track=True,
+                    output_path=output_path,
+                )
                 try:
                     self.evaluate_scene(
                         index=scene_ind,
@@ -1061,7 +1085,8 @@ class Evaluator:
                         track=True,
                         output_path=output_path,
                     )
-                except Exception:
+                except Exception as exc:
+                    raise exc
                     LOGGER.exception(
                         f"Encountered an error when processing scene {scene_ind}."
                     )
@@ -1130,6 +1155,8 @@ class Evaluator:
                 "This function requires matplotlib and cartopy to be installed."
             )
 
+        rqi_levels = [0.5, 0.9]
+
         results = self.evaluate_scene(
             index=scene_index,
             tile_size=tile_size,
@@ -1137,7 +1164,7 @@ class Evaluator:
             batch_size=batch_size,
             retrieval_fn=retrieval_fn,
             input_data_format=input_data_format,
-            track=False
+            track=False,
         )
 
         fname = self.target_gridded[scene_index].name
@@ -1161,8 +1188,8 @@ class Evaluator:
         )
 
         crs = ccrs.PlateCarree()
-        fig = plt.figure(figsize=(12, 5))
-        gs = GridSpec(1, 3, width_ratios=[1.0, 1.0, 0.075])
+        fig = plt.figure(figsize=(12, 6))
+        gs = GridSpec(2, 3, width_ratios=[1.0, 1.0, 0.075], height_ratios=[1.0, 0.1])
         norm = LogNorm(1e-1, 1e2)
 
         mask = np.isnan(sp_ref)
@@ -1170,7 +1197,7 @@ class Evaluator:
         ax = fig.add_subplot(gs[0, 0], projection=crs)
         ax.pcolormesh(lons, lats, np.maximum(sp_ret, 1e-3), cmap=cmap_precip, norm=norm)
         ax.contour(
-            lons, lats, rqi, levels=[1e-3, 0.8], linestyles=["-", "--"], colors="grey"
+            lons, lats, rqi, levels=rqi_levels, linestyles=["-", "--"], colors="grey"
         )
         ax.set_title("(a) Retrieved", loc="left")
         add_ticks(ax, lon_ticks, lat_ticks, left=True, bottom=True)
@@ -1184,8 +1211,9 @@ class Evaluator:
             cmap=cmap_precip,
             norm=norm,
         )
-        ax.contour(
-            lons, lats, rqi, levels=[1e-3, 0.8], linestyles=["-", "--"], colors="grey"
+
+        cntr = ax.contour(
+            lons, lats, rqi, levels=rqi_levels, linestyles=["-", "--"], colors="grey"
         )
         ax.set_title("(b) Reference", loc="left")
         add_ticks(ax, lon_ticks, lat_ticks, left=False, bottom=True)
@@ -1196,37 +1224,218 @@ class Evaluator:
         cax = fig.add_subplot(gs[0, 2])
         plt.colorbar(m, cax=cax, label="Surface precipitation [mm h$^{-1}$]")
 
+        handles, labels = cntr.legend_elements()
+        labels = [label.replace("x", "RQI") for label in labels]
+        ax = fig.add_subplot(gs[1, :])
+        ax.set_axis_off()
+        ax.legend(handles=handles, labels=labels, ncol=2, loc="center")
+
         return fig
 
-    def get_precipitation_estimation_results(
-        self,
-        name: Optional[str] = None,
+    def get_precip_quantification_results(
+        self, name: Optional[str] = None, include_baselines: bool = True
     ) -> pd.DataFrame:
         """
         Get scalar results from precipitation estimation metrics as pandas.Dataframe.
 
         Args:
-             name: An optional name for the retrieval algorithm.
+            name: An optional name for the retrieval algorithm.
+            include_baselines: If 'True', results from retrieval baselines will be included
+                in the results.
+
+        Return:
+            A pandas.DataFrame containing the combined scalar results from
+            the 'precip_quantification_metrics' of this Evaluator object.
+
         """
-        names = []
-        units = []
         results = []
         for metric in self.precip_quantification_metrics:
             res_m = metric.compute()
-            vars = [var for var in res_m.variables if res_m[var].size == 1]
-            for var in vars:
-                results.append(res_m[var].data)
-                names.append(res_m[var].attrs["full_name"])
-                units.append(res_m[var].attrs["unit"])
+            drop = [var for var in res_m.variables if len(res_m[var].dims) > 0]
+            results.append(res_m.drop_vars(drop))
+
+        results = xr.merge(results).expand_dims("algorithm")
+        results["algorithm"] = (("algorithm",), [name])
+
+        if include_baselines:
+            results_b = baselines.load_baseline_results(self.sensor)
+            vars = list(results.variables.keys())
+            results = xr.concat([results, results_b[vars]], dim="algorithm")
 
         data = {}
-        for res_name, unit, result in zip(names, units, results):
-            unit_str = f"${unit}$" if unit != "" else ""
-            data[f"{res_name} [{unit_str}]"] = [result]
+        for var in results.variables:
+            if var == "algorithm":
+                continue
+            full_name = results[var].attrs.get("full_name")
+            unit = results[var].attrs.get("unit")
+            unit_str = "[]" if unit == "" else f"[${unit}$]"
+            data[f"{full_name} {unit_str}"] = results[var].data
 
+        return pd.DataFrame(data=data, index=results.algorithm)
 
-        return pd.DataFrame(data=data, index=[name])
+    def get_precip_detection_results(
+        self, name: Optional[str] = None, include_baselines: bool = True
+    ) -> pd.DataFrame:
+        """
+        Get scalar results from precipitation detection metrics as pandas.Dataframe.
 
+        Args:
+            name: An optional name for the retrieval algorithm.
+            include_baselines: If 'True', results from retrieval baselines will be included
+                in the results.
+
+        Return:
+            A pandas.DataFrame containing the combined scalar results from
+            the 'precip_detection_metrics' of this Evaluator object.
+        """
+        results = []
+        for metric in self.precip_detection_metrics:
+            res_m = metric.compute()
+            drop = [var for var in res_m.variables if len(res_m[var].dims) > 0]
+            results.append(res_m.drop_vars(drop))
+
+        results = xr.merge(results).expand_dims("algorithm")
+        results["algorithm"] = (("algorithm",), [name])
+
+        if include_baselines:
+            results_b = baselines.load_baseline_results(self.sensor)
+            vars = list(results.variables.keys())
+            results = xr.concat([results, results_b[vars]], dim="algorithm")
+
+        data = {}
+        for var in results.variables:
+            if var == "algorithm":
+                continue
+            full_name = results[var].attrs.get("full_name")
+            unit = results[var].attrs.get("unit")
+            unit_str = "[]" if unit == "" else f"[${unit}$]"
+            data[f"{full_name} {unit_str}"] = results[var].data
+
+        return pd.DataFrame(data=data, index=results.algorithm)
+
+    def get_prob_precip_detection_results(
+        self, name: Optional[str] = None, include_baselines: bool = True
+    ) -> pd.DataFrame:
+        """
+        Get scalar results from probabilistic precipitation detection
+        metrics as pandas.Dataframe.
+
+        Args:
+            name: An optional name for the retrieval algorithm.
+            include_baselines: If 'True', results from retrieval baselines
+                will be included in the results.
+
+        Return:
+            A pandas.DataFrame containing the combined scalar results from
+            the 'prob_precip_detection_metrics' of this Evaluator object.
+        """
+        results = []
+        for metric in self.prob_precip_detection_metrics:
+            res_m = metric.compute()
+            drop = [var for var in res_m.variables if len(res_m[var].dims) > 0]
+            results.append(res_m.drop_vars(drop))
+
+        results = xr.merge(results).expand_dims("algorithm")
+        results["algorithm"] = (("algorithm",), [name])
+
+        if include_baselines:
+            results_b = baselines.load_baseline_results(self.sensor)
+            vars = list(results.variables.keys())
+            results = xr.concat([results, results_b[vars]], dim="algorithm")
+
+        data = {}
+        for var in results.variables:
+            if var == "algorithm":
+                continue
+            full_name = results[var].attrs.get("full_name")
+            unit = results[var].attrs.get("unit")
+            unit_str = "[]" if unit == "" else f"[${unit}$]"
+            data[f"{full_name} {unit_str}"] = results[var].data
+
+        return pd.DataFrame(data=data, index=results.algorithm)
+
+    def get_heavy_precip_detection_results(
+        self, name: Optional[str] = None, include_baselines: bool = True
+    ) -> pd.DataFrame:
+        """
+        Get scalar results from heavy precipitation detection metrics as pandas.Dataframe.
+
+        Args:
+            name: An optional name for the retrieval algorithm.
+            include_baselines: If 'True', results from retrieval baselines will be included
+                in the results.
+
+        Return:
+            A pandas.DataFrame containing the combined scalar results from
+            the 'heavy_precip_detection_metrics' of this Evaluator object.
+        """
+        results = []
+        for metric in self.heavy_precip_detection_metrics:
+            res_m = metric.compute()
+            drop = [var for var in res_m.variables if len(res_m[var].dims) > 0]
+            results.append(res_m.drop_vars(drop))
+
+        results = xr.merge(results).expand_dims("algorithm")
+        results["algorithm"] = (("algorithm",), [name])
+
+        if include_baselines:
+            results_b = baselines.load_baseline_results(self.sensor)
+            vars = list(results.variables.keys())
+            results = xr.concat([results, results_b[vars]], dim="algorithm")
+
+        data = {}
+        for var in results.variables:
+            if var == "algorithm":
+                continue
+            full_name = results[var].attrs.get("full_name")
+            unit = results[var].attrs.get("unit")
+            unit_str = "[]" if unit == "" else f"[${unit}$]"
+            data[f"{full_name} {unit_str}"] = results[var].data
+
+        return pd.DataFrame(data=data, index=results.algorithm)
+
+    def get_prob_heavy_precip_detection_results(
+        self, name: Optional[str] = None, include_baselines: bool = True
+    ) -> pd.DataFrame:
+        """
+        Get scalar results from probabilistic heavy precipitation detection
+        metrics as pandas.Dataframe.
+
+        Args:
+            name: An optional name for the retrieval algorithm.
+            include_baselines: If 'True', results from retrieval baselines
+                will be included in the results.
+
+        Return:
+            A pandas.DataFrame containing the combined scalar results from
+            the 'prob_heavy_precip_detection_metrics' of this Evaluator object.
+        """
+        results = []
+        for metric in self.prob_heavy_precip_detection_metrics:
+            res_m = metric.compute()
+            drop = [var for var in res_m.variables if len(res_m[var].dims) > 0]
+            res_m = res_m.drop_vars(drop)
+            new_names = {name: name + "_heavy" for name in res_m.variables}
+            results.append(res_m.rename(new_names))
+
+        results = xr.merge(results).expand_dims("algorithm")
+        results["algorithm"] = (("algorithm",), [name])
+
+        if include_baselines:
+            results_b = baselines.load_baseline_results(self.sensor)
+            vars = list(results.variables.keys())
+            results = xr.concat([results, results_b[vars]], dim="algorithm")
+
+        data = {}
+        for var in results.variables:
+            if var == "algorithm":
+                continue
+            full_name = results[var].attrs.get("full_name")
+            unit = results[var].attrs.get("unit")
+            unit_str = "[]" if unit == "" else f"[${unit}$]"
+            data[f"{full_name} {unit_str}"] = results[var].data
+
+        return pd.DataFrame(data=data, index=results.algorithm)
 
     def get_results(self) -> xr.Dataset:
         """
