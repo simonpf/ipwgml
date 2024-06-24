@@ -5,7 +5,6 @@ ipwgml.definitions
 This module defines shared attributes for the ipwgml package.
 """
 
-
 ANCILLARY_VARIABLES = [
     "wet_bulb_temperature",
     "two_meter_temperature",
@@ -17,29 +16,23 @@ ANCILLARY_VARIABLES = [
     "snow_depth",
     "orographic_wind",
     "10m_wind",
-    "surface_type",
-    "mountain_type",
+    # "surface_type",
+    # "mountain_type",
     "land_fraction",
     "ice_fraction",
     "quality_flag",
     "sunglint_angle",
-    "airlifting_index"
+    "airlifting_index",
 ]
 
+N_CLASSES = {
+    "surface_type": 18,
+}
 
-ALL_INPUTS = [
-    "pmw",
-    "geo",
-    "geo_ir",
-    "ancillary"
-]
+
+ALL_INPUTS = ["gmi", "geo", "geo_ir", "ancillary"]
 
 SENSORS = ["gmi"]
 GEOMETRIES = ["gridded", "on_swath"]
-SPLITS = [
-    "training",
-    "validation",
-    "testing",
-    "evaluation"
-]
+SPLITS = ["training", "validation", "testing", "evaluation"]
 FORMATS = ["spatial", "tabular"]
