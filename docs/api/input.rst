@@ -1,0 +1,2 @@
+.. automodule:: ipwgml.input
+    :members:

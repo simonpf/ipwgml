@@ -1,0 +1,22 @@
+format: jb-book
+root: intro
+chapters:
+- file: getting_started
+- file: dataset
+- file: evaluation
+- file: notebooks/input_and_target_data.ipynb
+- file: examples
+  sections:
+    - file: notebooks/evaluate_imerg.ipynb
+    - file: notebooks/evaluate_gprof.ipynb
+    - file: notebooks/pytorch/full_connected.ipynb
+    - file: notebooks/pytorch/convolutional_neural_network.ipynb
+- file: api_documentation
+  sections:
+    - file: api/evaluation
+    - file: api/data
+    - file: api/input
+    - file: api/target
+    - file: api/metrics
+    - file: api/pytorch/pytorch
+    - file: api/pytorch/datasets

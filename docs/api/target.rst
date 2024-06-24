@@ -1,0 +1,2 @@
+.. automodule:: ipwgml.target
+    :members:

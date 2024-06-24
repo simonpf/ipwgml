@@ -42,7 +42,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-complete = ["pytest", "torch", "xarray[complete]"]
+complete = ["pytest", "torch", "xarray[complete]", "lightning"]
 
 [project.urls]
 "Source" = "https://github.com/simonpf/ipwgml/"

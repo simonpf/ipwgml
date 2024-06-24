@@ -1,0 +1,21 @@
+title: IPWGML
+author: Simon Pfreundschuh
+execute:
+  execute_notebooks: off
+
+sphinx:
+  extra_extensions:
+  - 'sphinx.ext.autodoc'
+  - 'sphinx.ext.napoleon'
+  - 'sphinx.ext.viewcode'
+  config:
+    add_module_names: False
+    autoclass_content: "both"
+
+repository:
+  url                       : https://github.com/simonpf/ipwgml
+  path_to_book              : docs
+  branch                    : main
+
+launch_buttons:
+  colab_url: "https://colab.research.google.com"
