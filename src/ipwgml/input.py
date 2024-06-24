@@ -243,6 +243,7 @@ class PMW(InputConfig):
             key 'eia_<sensor_name>'.
         """
         with open_if_required(pmw_data_file) as pmw_data:
+            pmw_data = pmw_data.compute()
             pmw_data = pmw_data[["observations", "earth_incidence_angle"]].transpose("channel", ...)
             if self.channels is not None:
                 pmw_data = pmw_data[{"channel": self.channels}]
@@ -269,9 +270,8 @@ class GMI(PMW):
     Retrieval input data from the GPM Microwave Imager (GMI).
 
     The GMI class represents observations from the GPM Microwave Imager (GMI) as
-    retrieval input data. It allows for limiting the input data to subsets of the
-    available GMI channels and including or excluding the earth-incidence angles
-    in the input data.
+    retrieval input data. It allows for selecting subsets of the available GMI
+    channels and including or excluding the earth-incidence angles in the input data.
 
     The GMI input will load tensors 'obs_gmi' containing the GMI passive microwave
     observations and, if 'include_angles' is set to 'True', 'eia_gmi' containing the
@@ -305,11 +305,32 @@ class GMI(PMW):
     def name(self) -> str:
         return "gmi"
 
+    @property
+    def features(self) -> Dict[str, int]:
+        """
+        Dictionary mapping the input names from the GMI input to the corresponding
+        number of channels.
+        """
+        n_chans = 13
+        if self.channels is not None:
+            n_chans = len(self.channels)
+
+        features = {"obs_gmi": n_chans}
+        if self.include_angles:
+            features["eia_gmi"] = n_chans
+
+        return features
+
 
 @dataclass
 class Ancillary(InputConfig):
     """
-    InputData record class representing retrieval ancillary data.
+    This InputConfig class will load ancillary data as retrieval input. The class
+    allows for configuration, which variables will be loaded.
+
+    Including the 'Ancillary' input config in the list of retrieval inputs will
+    load the ancillary data and include it in the retrieval input data as a
+    variable named 'ancillary'.
     """
     def __init__(
             self,
@@ -326,7 +347,15 @@ class Ancillary(InputConfig):
         """
         if variables is None:
             variables = ANCILLARY_VARIABLES
+        invalid = [var for var in variables if var not in ANCILLARY_VARIABLES]
+        if len(invalid) > 0:
+            raise ValueError(
+                "'variables' must contain a subset of the available ancillary variables but "
+                f"'{invalid}' are not."
+            )
         self.variables = variables
+        self.normalize = normalize
+        self.nan = nan
         self._stats = None
 
     @property
@@ -339,7 +368,7 @@ class Ancillary(InputConfig):
         xarray.Dataset containing summary statistics for the input.
         """
         if self._stats is None:
-            stats_file = Path(__file__).parent / "files" / "stats" / "obs_pmw.nc"
+            stats_file = Path(__file__).parent / "files" / "stats" / "ancillary.nc"
             inds = [ind for ind, var in enumerate(ANCILLARY_VARIABLES) if var in self.variables]
             self._stats = xr.load_dataset(stats_file)[{"features": inds}]
         return self._stats
@@ -361,14 +390,27 @@ class Ancillary(InputConfig):
             for var in self.variables:
                 data.append(ancillary_data[var].data)
 
-        data = np.stack(data)
+        data = normalize(np.stack(data), self.stats, how=self.normalize, nan=self.nan)
         return {"ancillary": data}
+
+    @property
+    def features(self) -> Dict[str, int]:
+        """
+        Dictionary mapping names of the input data variables loaded by the
+        ancillary data input class to the corresponding number of features.
+        """
+        return {"ancillary": len(self.variables)}
 
 
 @dataclass
 class GeoIR(InputConfig):
     """
-    InputData record class representing GEO-IR data.
+    The GeoIR class represents IR-window channel observations from geostationary
+    satellites in the retrieval input. The full IR input comprises 8
+    half-hourly observations before the median overpass time and 8 after the
+    median overpass time. The GeoIR class allows selecting subsets of these time
+    steps as well as only loading the nearest observations for every reference
+    data pixel.
     """
     time_steps: List[int]
     nearest: bool = True
@@ -382,7 +424,10 @@ class GeoIR(InputConfig):
     ):
         """
         Args:
-            time_steps: Optional list of time steps to load.
+            time_steps: Optional list of time steps to load. The time steps are identified
+                using zero-based indices with steps 0-7 to the eight time steps prior
+                to the median overpass time and steps 8-15 to the eight time steps after
+                the overpass time.
             nearest: It 'True' only observations from the time nearest to the target
                 time will be loaded.
             normalize: An optional string specifying how to normalize the input data.
@@ -390,11 +435,11 @@ class GeoIR(InputConfig):
                 in the input data.
         """
         if time_steps is None:
-            time_steps = list(range(8))
+            time_steps = list(range(16))
         for time_step in time_steps:
-            if (time_step < 0) or (7 < time_step):
+            if (time_step < 0) or (15 < time_step):
                 raise RuntimeError(
-                    "Time steps for GeoIR input must be within [0, 8]."
+                    "Time steps for GeoIR input must be within [0, 15]."
                 )
         self.time_steps = time_steps
         self.nearest = nearest
@@ -413,7 +458,10 @@ class GeoIR(InputConfig):
         """
         if self._stats is None:
             stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo_ir.nc"
-            self._stats = xr.load_dataset(stats_file)
+            if self.nearest:
+                self._stats = xr.load_dataset(stats_file)[{"features": 8}]
+            else:
+                self._stats = xr.load_dataset(stats_file)[{"features": self.time_steps}]
         return self._stats
 
     def load_data(self, geo_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
@@ -433,24 +481,46 @@ class GeoIR(InputConfig):
         with open_if_required(geo_data_file) as geo_data:
             geo_data = geo_data.transpose("time", ...)
             if self.nearest:
-                delta_t = geo_data.time - target_time
-                inds = np.abs(delta_t).argmin("time")
-                obs = geo_data.observations[{"time": inds}].data[None]
+                if "nearest_ind" in geo_data:
+                    obs = geo_data.observations[{"time": geo_data.nearest_ind}].data
+                else:
+                    delta_t = geo_data.time - target_time
+                    inds = np.abs(delta_t).argmin("time")
+                    obs = geo_data.observations[{"time": inds}].data[None]
             else:
                 obs = geo_data.observations[{"time": self.time_steps}].data
+
+        obs = normalize(obs, self.stats, how=self.normalize, nan=self.nan)
         return {"obs_geo_ir": obs}
+
+    @property
+    def features(self) -> Dict[str, int]:
+        """
+        Dictionary mapping names of the input data variables loaded by the
+        GeoIR input class to the corresponding number of features.
+        """
+        if self.nearest:
+            n_features = 1
+        else:
+            n_features = len(self.time_steps)
+        return {"obs_geo_ir": n_features}
 
 
 @dataclass
 class Geo(InputConfig):
     """
-    InputData record class representing GEO data.
+    The Geo class represents GOES-16 ABI  observations in the retrieval input.
+    The full IR input comprises 2 15-minute observations before the median
+    overpass time and 2 after the median overpass time.
+    The GeoIR class allows selecting subsets of these time steps as well as
+    only loading the nearest observations for every reference data pixel.
     """
     time_steps: List[int]
     nearest: bool = True
 
     def __init__(
             self,
+            channels: Optional[List[int]] = None,
             time_steps: Optional[List[int]] = None,
             nearest: bool = False,
             normalize: Optional[str] = None,
@@ -458,13 +528,21 @@ class Geo(InputConfig):
     ):
         """
         Args:
-            time_steps: Optional list of time steps to load.
+            channels: Optional list of zero-based indices identifying the GOES channels
+                to load.
+            time_steps: Optional zero-based indices of the time steps to load. Indices
+                0 and 1 correspond to 30 and 15 minutes before the median overpass time
+                and indices 2 and 3 to 15 minutes after the median overpass time.
             nearest: It 'True' only observations from the time nearest to the target
                 time will be loaded.
             normalize: An optional string specifying how to normalize the input data.
             nan: An optional float value that will be used to replace missing values
                 in the input data.
         """
+        if channels is None:
+            channels = range(16)
+        self.channels = channels
+
         if time_steps is None:
             time_steps = list(range(4))
         for time_step in time_steps:
@@ -506,17 +584,34 @@ class Geo(InputConfig):
             time and channel dimensions along the leading axes of the array.
         """
         with open_if_required(geo_data_file) as geo_data:
-            geo_data = geo_data.transpose("time", "channel", ...)
+            geo_data = geo_data.compute()
+            geo_data = geo_data.transpose("time", "channel", ...)[{"channel": self.channels}]
             if self.nearest:
-                delta_t = geo_data.time - target_time
-                inds = np.abs(delta_t).argmin("time")
-                if "latitude" in inds.dims:
-                    inds = inds.drop_vars(["latitude", "longitude"])
+                if "nearest_time_step" in geo_data:
+                    inds = geo_data.nearest_time_step
+                else:
+                    delta_t = geo_data.time - target_time
+                    inds = np.abs(delta_t).argmin("time")
+                    if "latitude" in inds.dims:
+                        inds = inds.drop_vars(["latitude", "longitude"])
                 obs = geo_data.observations[{"time": inds}].transpose("channel", ...).data[None]
             else:
                 obs = geo_data.observations[{"time": self.time_steps}].data
 
-        return {"obs_geo": obs}
+        return {"obs_geo": np.reshape(obs, (-1,) + obs.shape[2:])}
+
+    @property
+    def features(self) -> Dict[str, int]:
+        """
+        Dictionary mapping names of the input data variables loaded by the
+        Geo input class to the corresponding number of features.
+        """
+        n_chans = len(self.channels)
+        if self.nearest:
+            n_features = n_chans
+        else:
+            n_features = len(self.time_steps) * n_chans
+        return {"obs_geo": n_features}
 
 
 def parse_retrieval_inputs(
@@ -539,18 +634,23 @@ def parse_retrieval_inputs(
 
 def calculate_input_features(
         inputs: List[str | Dict[str, Any] | InputConfig],
-        stacked: bool = True
+        stack: bool = True
 ) -> int | Dict[str, int]:
     """
     Calculates the number of input features given a list of inputs.
 
     Args:
         inputs: A list specifying the retrieval input.
-        stacked: If 'True', returns a single integer representing the total number of
+        stack: If 'True', returns a single integer representing the total number of
             features of all inputs stacked along the channel/feature dimension. If 'False',
             returns a dict mapping input names to the corresponding number of features.
-
-
-     
-
     """
+    inputs = parse_retrieval_inputs(inputs)
+    features = {}
+    for inpt in inputs:
+        features.update(inpt.features)
+
+    if stack:
+        return sum(features.values())
+
+    return features

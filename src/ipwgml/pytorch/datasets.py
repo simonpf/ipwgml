@@ -2,8 +2,12 @@
 ipwg.pytorch.data
 =================
 
-Define pytorch dataset classes for loading the IPWG ML benchmark data.
+This module provides PyTorch dataset classes for loading the SPR data.
+The :class:`SPRTabular` will load data in tabular format while the
+:class:`SPRSpatial` will load data in spatial format.
+
 """
+
 from datetime import datetime
 from math import ceil
 import os
@@ -22,21 +26,26 @@ from ipwgml.input import InputConfig, parse_retrieval_inputs
 from ipwgml.target import TargetConfig
 
 
-
 class SPRTabular(Dataset):
     """
-    Dataset class providing access to the IPWG IPR benchmark dataset.
+    Dataset class for SPR data in tabular format.
+
+    For efficiency, the SPRTabular data loads all of the training data into memory
+    upon creation and provides the option to perform batching within the dataset
+    instead of in the data loader.
     """
+
     def __init__(
         self,
         sensor: str,
         geometry: str,
         split: str,
         batch_size: Optional[int] = None,
-        shuffle: Optional[bool] = False,
+        shuffle: Optional[bool] = True,
         retrieval_input: List[str | Dict[str, Any] | InputConfig] = None,
         target_config: Optional[TargetConfig] = None,
         stack: bool = False,
+        subsample: Optional[float] = None,
         ipwgml_path: Optional[Path] = None,
         download: bool = True,
     ):
@@ -57,6 +66,7 @@ class SPRTabular(Dataset):
             stack: If 'False', the input will be loaded as a dictionary containing the input tensors
                 from all input dataset. If 'True', the tensors will be concatenated along the
                 feature axis and only a single tensor is loaded instead of dictionary.
+            subsample: An optional fraction specifying how much of the dataset to load per epoch.
             ipwgml_path: Path containing or to which to download the IPWGML data.
             download: If 'True', missing data will be downloaded upon dataset creation. Otherwise, only
                 locally available files will be used.
@@ -69,15 +79,11 @@ class SPRTabular(Dataset):
             ipwgml_path = Path(ipwgml_path)
 
         if not sensor.lower() in ["gmi", "atms"]:
-            raise ValueError(
-                "Sensor must be one of ['gmi', 'atms']."
-            )
+            raise ValueError("Sensor must be one of ['gmi', 'atms'].")
         self.sensor = sensor.lower()
 
         if not geometry.lower() in ["gridded", "on_swath"]:
-            raise ValueError(
-                "Geomtry must be one of ['gridded', 'on_swath']."
-            )
+            raise ValueError("Geomtry must be one of ['gridded', 'on_swath'].")
         self.geometry = geometry.lower()
 
         if not split.lower() in ["training", "validation", "testing"]:
@@ -97,14 +103,29 @@ class SPRTabular(Dataset):
         self.target_config = target_config
 
         self.stack = stack
+        self.subsample = subsample
 
-        self.pmw_data = None
         self.geo_data = None
         self.geo_ir_data = None
         self.ancillary_data = None
         self.target_data = None
 
+        # Load target data and mask
         dataset = f"spr/{self.sensor}/{self.split}/{self.geometry}/tabular/"
+        if download:
+            download_missing(dataset + "target", ipwgml_path, progress_bar=True)
+        files = list((ipwgml_path / dataset / "target").glob("*.nc"))
+        if len(files) == 0:
+            raise ValueError(
+                f"Couldn't find any target data files. "
+                " Please make sure that the ipwgml data path is correct or "
+                "set 'download' to True to download the file."
+            )
+        self.target_data = xr.load_dataset(files[0])
+        valid = ~self.target_config.get_mask(self.target_data)
+        self.target_data = self.target_data[{"samples": valid}]
+
+        # Load input data
         for inpt in self.retrieval_input:
             if download:
                 download_missing(dataset + inpt.name, ipwgml_path, progress_bar=True)
@@ -115,20 +136,8 @@ class SPRTabular(Dataset):
                     " Please make sure that the ipwgml data path is correct or "
                     "set 'download' to True to download the file."
                 )
-            setattr(self, inpt.name + "_data", xr.load_dataset(files[0]))
-
-        if download:
-            download_missing(dataset + "target", ipwgml_path, progress_bar=True)
-        files = list((ipwgml_path / dataset / "target").glob("*.nc"))
-        self.target_data = xr.load_dataset(files[0])
-
-        # Determine valid samples and subset data
-        valid = ~self.target_config.get_mask(self.target_data)
-        self.target_data = self.target_data[{"samples": valid}]
-        for inpt in self.retrieval_input:
-            input_data = getattr(self, inpt.name + "_data", xr.load_dataset(files[0]))
-            input_data = input_data[{"samples": valid}]
-            setattr(self, inpt.name + "_data", input_data)
+            input_data = xr.load_dataset(files[0])
+            setattr(self, inpt.name + "_data", input_data[{"samples": valid}])
 
         self.rng = np.random.default_rng(seed=42)
         if self.shuffle:
@@ -136,12 +145,13 @@ class SPRTabular(Dataset):
         else:
             self.indices = np.arange(self.target_data.samples.size)
 
-
     def __len__(self) -> int:
         """
         The number of samples in the dataset.
         """
         n_samples = self.target_data.samples.size
+        if self.subsample is not None:
+            n_samples = self.subsample * n_samples
 
         if self.batch_size is None:
             return self.target_data.samples.size
@@ -149,8 +159,9 @@ class SPRTabular(Dataset):
         n_batches = ceil(n_samples / self.batch_size)
         return n_batches
 
-
-    def __getitem__(self, ind: int) -> Tuple[Union[torch.Tensor, Dict[str, torch.Tensor]], torch.Tensor]:
+    def __getitem__(
+        self, ind: int
+    ) -> Tuple[Union[torch.Tensor, Dict[str, torch.Tensor]], torch.Tensor]:
         """
         Return sample from dataset.
 
@@ -180,7 +191,9 @@ class SPRTabular(Dataset):
             samples = self.indices[batch_start:batch_end]
 
         target_data = self.target_data[{"samples": samples}]
-        surface_precip = self.target_config.load_reference_precip(target_data).astype(np.float32)
+        surface_precip = self.target_config.load_reference_precip(target_data).astype(
+            np.float32
+        )
         surface_precip = torch.tensor(surface_precip)
         target_time = target_data.time
 
@@ -202,7 +215,6 @@ class SPRTabular(Dataset):
             input_data = torch.cat(list(input_data.values()), -1)
 
         return input_data, surface_precip
-
 
 
 def get_median_time(filename_or_path: Path | str) -> datetime:
@@ -245,10 +257,7 @@ def apply(tensors: Any, transform: torch.Tensor) -> torch.Tensor:
         return {key: apply(tensor, transform) for key, tensor in tensors.items()}
     if isinstance(tensors, torch.Tensor):
         return transform(tensors)
-    raise ValueError(
-        "Encountered an unsupported type %s in apply.",
-        type(tensors)
-    )
+    raise ValueError("Encountered an unsupported type %s in apply.", type(tensors))
 
 
 class SPRSpatial:
@@ -256,6 +265,7 @@ class SPRSpatial:
     Dataset class providing access to the spatial variant of the satellite precipitation retrieval
     benchmark dataset.
     """
+
     def __init__(
         self,
         sensor: str,
@@ -272,8 +282,8 @@ class SPRSpatial:
         Args:
             sensor: The sensor for which to load the benchmark dataset.
             geometry: Whether to load on_swath or regridded observations.
-            split: Whether to load training ('train'), validation ('val'), or
-                 test ('test') splits.
+            split: Whether to load 'training', 'validation', or
+                 'testing' splits.
             retrieval_input: List of the retrieval inputs to load. The list should contain
                 names of retrieval input sources ("pmw", "geo", "geo_ir", "ancillary"), dictionaries
                 defining the input name and additional input options, or InputConfig. If not explicitly
@@ -296,15 +306,11 @@ class SPRSpatial:
             ipwgml_path = Path(ipwgml_path)
 
         if not sensor.lower() in ["gmi", "atms"]:
-            raise ValueError(
-                "Sensor must be one of ['gmi', 'atms']."
-            )
+            raise ValueError("Sensor must be one of ['gmi', 'atms'].")
         self.sensor = sensor.lower()
 
         if not geometry.lower() in ["gridded", "on_swath"]:
-            raise ValueError(
-                "Geomtry must be one of ['gridded', 'on_swath']."
-            )
+            raise ValueError("Geomtry must be one of ['gridded', 'on_swath'].")
         self.geometry = geometry.lower()
 
         if not split.lower() in ["training", "validation", "testing"]:
@@ -333,19 +339,17 @@ class SPRSpatial:
         dataset = f"spr/{self.sensor}/{self.split}/{self.geometry}/spatial/"
         for inpt in self.retrieval_input:
             if download:
-                download_missing(dataset + inpt.name, ipwgml_path)
+                download_missing(dataset + inpt.name, ipwgml_path, progress_bar=True)
             files = sorted(list((ipwgml_path / dataset / inpt.name).glob("*.nc")))
             setattr(self, inpt.name, np.array(files))
 
-
         if download:
-            download_missing(dataset + "target", ipwgml_path)
+            download_missing(dataset + "target", ipwgml_path, progress_bar=True)
         files = sorted(list((ipwgml_path / dataset / "target").glob("*.nc")))
         self.target = np.array(files)
 
         self.check_consistency()
         self.worker_init_fn(0)
-
 
     def worker_init_fn(self, w_id: int) -> None:
         """
@@ -370,13 +374,11 @@ class SPRSpatial:
                     f"Available target times are inconsistent with input files for input {inpt}."
                 )
 
-
     def __len__(self) -> int:
         """
         The number of samples in the dataset.
         """
         return len(self.target)
-
 
     def __getitem__(self, ind: int) -> Tuple[Dict[str, torch.Tensor], torch.Tensor]:
         """
@@ -394,7 +396,7 @@ class SPRSpatial:
                 continue
             data = inpt.load_data(files[ind], target_time=target_time)
             for name, arr in data.items():
-                input_data[name] = torch.tensor(arr)
+                input_data[name] = torch.tensor(arr.astype(np.float32))
 
         if self.augment:
 
