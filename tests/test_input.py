@@ -1,6 +1,7 @@
 """
 Tests for the ipwgml.input module.
 """
+
 from pathlib import Path
 
 import numpy as np
@@ -12,7 +13,7 @@ from ipwgml.input import (
     InputConfig,
     GMI,
     Ancillary,
-    calculate_input_features
+    calculate_input_features,
 )
 
 
@@ -21,12 +22,7 @@ def test_normalize():
     Test normalization of input data.
     """
     data = np.random.rand(128, 128)
-    stats = xr.Dataset({
-        "min": 0,
-        "max": 1,
-        "mean": 0.5,
-        "std_dev": 1.0
-    })
+    stats = xr.Dataset({"min": 0, "max": 1, "mean": 0.5, "std_dev": 1.0})
 
     data_n = normalize(data, stats, "standardize")
     assert (0.0 <= data).all()
@@ -35,12 +31,7 @@ def test_normalize():
     assert np.isclose(data_n.mean(), 0.0, atol=1e-2)
 
     data = np.random.rand(128, 128)
-    stats = xr.Dataset({
-        "min": 0,
-        "max": 1,
-        "mean": 0.5,
-        "std_dev": 1.0
-    })
+    stats = xr.Dataset({"min": 0, "max": 1, "mean": 0.5, "std_dev": 1.0})
     data_n = normalize(data, stats, "minmax")
     assert (0.0 <= data).all()
     assert (data_n < 0.0).any()
@@ -84,9 +75,25 @@ def test_gmi_input(spr_gmi_gridded_spatial_train):
     """
     Test loading of GMI input data.
     """
-    gmi_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "gmi"
+    gmi_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+        / "gmi"
+    )
     gmi_files = sorted(list(gmi_path.glob("*.nc")))
-    target_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "target"
+    target_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+        / "target"
+    )
     target_files = sorted(list(target_path.glob("*.nc")))
     inpt = {"name": "gmi", "channels": [0, 1]}
     cfg = InputConfig.parse(inpt)
@@ -123,9 +130,25 @@ def test_ancillary_input(spr_gmi_gridded_spatial_train):
     """
     Test loading of ancillary input data.
     """
-    anc_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "ancillary"
+    anc_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+        / "ancillary"
+    )
     anc_files = sorted(list(anc_path.glob("*.nc")))
-    target_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "target"
+    target_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+        / "target"
+    )
     target_files = sorted(list(target_path.glob("*.nc")))
     inpt = {"name": "ancillary", "variables": ["total_column_water_vapor"]}
     cfg = InputConfig.parse(inpt)
@@ -142,9 +165,25 @@ def test_geo_ir_input(spr_gmi_gridded_spatial_train):
     """
     Test loading of GEO-IR input data.
     """
-    geo_ir_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "geo_ir"
+    geo_ir_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+        / "geo_ir"
+    )
     geo_ir_files = sorted(list(geo_ir_path.glob("*.nc")))
-    target_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial" / "target"
+    target_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+        / "target"
+    )
     target_files = sorted(list(target_path.glob("*.nc")))
 
     inpt = {"name": "geo_ir", "time_steps": [0, 1, 2, 3]}
@@ -171,9 +210,11 @@ def test_geo_input_spatial(spr_gmi_gridded_spatial_train):
     Test loading of GEO input data.
     """
     ipwgml_path = spr_gmi_gridded_spatial_train
-    geo_path = ipwgml_path / "spr" / "gmi" / "training" / "gridded" / "spatial" /  "geo"
+    geo_path = ipwgml_path / "spr" / "gmi" / "training" / "gridded" / "spatial" / "geo"
     geo_files = sorted(list(geo_path.glob("*.nc")))
-    target_path = ipwgml_path / "spr" / "gmi" / "training" / "gridded" / "spatial" /  "target"
+    target_path = (
+        ipwgml_path / "spr" / "gmi" / "training" / "gridded" / "spatial" / "target"
+    )
     target_files = sorted(list(target_path.glob("*.nc")))
 
     inpt = {"name": "geo", "time_steps": [1, 2], "channels": [0, 3, 9]}
@@ -198,9 +239,11 @@ def test_geo_input_tabular(spr_gmi_on_swath_tabular_train):
     Test loading of GEO input data.
     """
     ipwgml_path = spr_gmi_on_swath_tabular_train
-    geo_path = ipwgml_path / "spr" / "gmi" / "training" / "on_swath" / "tabular" /  "geo"
+    geo_path = ipwgml_path / "spr" / "gmi" / "training" / "on_swath" / "tabular" / "geo"
     geo_files = sorted(list(geo_path.glob("*.nc")))
-    target_path = ipwgml_path / "spr" / "gmi" / "training" / "on_swath" / "tabular" /  "target"
+    target_path = (
+        ipwgml_path / "spr" / "gmi" / "training" / "on_swath" / "tabular" / "target"
+    )
     target_files = sorted(list(target_path.glob("*.nc")))
 
     inpt = {"name": "geo", "time_steps": [1, 2], "channels": [0, 3, 9]}

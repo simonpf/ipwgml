@@ -1,17 +1,14 @@
 """
 Tests for the ipwgml.config module.
 """
+
 import os
 from pathlib import Path
 import random
 import string
 
 import ipwgml.config
-from ipwgml.config import (
-    get_data_path,
-    set_data_path,
-    show
-)
+from ipwgml.config import get_data_path, set_data_path, show
 
 
 def random_string(length: int) -> str:

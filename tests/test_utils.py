@@ -1,6 +1,7 @@
 """
 Tests for the ipwgml.utils module.
 """
+
 import numpy as np
 import xarray as xr
 
@@ -14,9 +15,7 @@ def test_open_if_required(tmp_path):
     NetCDF files and already-loaded data in the form of xr.Datasets.
     """
 
-    test_data = xr.Dataset({
-        "surface_precip": (("y", "x"), np.random.rand(64, 64))
-    })
+    test_data = xr.Dataset({"surface_precip": (("y", "x"), np.random.rand(64, 64))})
     test_data.to_netcdf(tmp_path / "test.nc")
 
     with open_if_required(tmp_path / "test.nc") as data:

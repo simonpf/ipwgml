@@ -1,13 +1,12 @@
 """
 Tests for the ipwgml.tiling module.
 """
+
 import numpy as np
 import xarray as xr
 
-from ipwgml.tiling import (
-    get_starts_and_clips,
-    DatasetTiler
-)
+from ipwgml.tiling import get_starts_and_clips, DatasetTiler
+
 
 def test_get_starts_and_clips():
     """
@@ -24,14 +23,14 @@ def test_get_starts_and_clips():
     arr = np.arange(1024)
     tiles = []
     for start in starts:
-        tiles.append(arr[start: start + tile_size])
+        tiles.append(arr[start : start + tile_size])
 
     ass = []
     for ind, tile in enumerate(tiles):
         assert tile.size == tile_size
         clip_l = 0 if ind == 0 else clips[ind - 1]
         clip_r = 0 if ind == len(clips) else clips[ind]
-        ass.append(tile[clip_l:tile_size - clip_r])
+        ass.append(tile[clip_l : tile_size - clip_r])
 
     ass = np.concatenate(ass)
     assert np.all(np.isclose(ass, arr))
@@ -68,7 +67,11 @@ def test_dataset_tiler_calculate_weights(spr_gmi_evaluation):
     result_tiler = DatasetTiler(results, 64, overlap=16, spatial_dims=("scan", "pixel"))
 
     valid = np.isfinite(dataset.surface_precip.data)
-    assert not np.all(np.isclose(results.surface_precip.data[valid], dataset.surface_precip.data[valid]))
+    assert not np.all(
+        np.isclose(
+            results.surface_precip.data[valid], dataset.surface_precip.data[valid]
+        )
+    )
 
     for row_ind in range(tiler.n_rows_tiled):
         for col_ind in range(tiler.n_cols_tiled):
@@ -80,7 +83,11 @@ def test_dataset_tiler_calculate_weights(spr_gmi_evaluation):
             result_tile.surface_precip.data += weights * tile.surface_precip.data
             result_tile.weights.data += weights
 
-    assert np.all(np.isclose(results.surface_precip.data[valid], dataset.surface_precip.data[valid]))
+    assert np.all(
+        np.isclose(
+            results.surface_precip.data[valid], dataset.surface_precip.data[valid]
+        )
+    )
     assert np.all(np.isclose(results.weights.data, 1.0))
 
 

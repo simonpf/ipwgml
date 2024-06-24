@@ -1,6 +1,7 @@
 """
 Tests for the ipwgml.evaluation module.
 """
+
 from pathlib import Path
 
 import numpy as np
@@ -14,17 +15,8 @@ from ipwgml.evaluation import (
     process_scene_spatial,
     process_scene_tabular,
 )
-from ipwgml.input import (
-    InputConfig,
-    GMI,
-    Ancillary
-)
-from ipwgml.metrics import (
-    Metric,
-    Bias,
-    MSE,
-    CorrelationCoef
-)
+from ipwgml.input import InputConfig, GMI, Ancillary
+from ipwgml.metrics import Metric, Bias, MSE, CorrelationCoef
 
 
 def test_find_files(spr_gmi_evaluation):
@@ -36,7 +28,7 @@ def test_find_files(spr_gmi_evaluation):
         "on_swath",
         ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
-        download=False
+        download=False,
     )
 
     assert len(evaluator) == 1
@@ -51,34 +43,68 @@ def test_load_input_data(spr_gmi_evaluation):
     Test loading of input data for retrieval evaluation.
     """
     target_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "target"
+        / "target_20230701195312.nc"
     )
     target_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "target"
+        / "target_20230701195312.nc"
     )
     gmi_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "gmi" / "gmi_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "gmi"
+        / "gmi_20230701195312.nc"
     )
     gmi_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "gmi" / "gmi_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "gmi"
+        / "gmi_20230701195312.nc"
     )
     ancillary_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "ancillary" / "ancillary_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "ancillary"
+        / "ancillary_20230701195312.nc"
     )
     ancillary_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "ancillary" / "ancillary_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "ancillary"
+        / "ancillary_20230701195312.nc"
     )
     target_file = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "target"
+        / "target_20230701195312.nc"
     )
-
 
     input_files = InputFiles(
         target_file_gridded,
@@ -96,9 +122,7 @@ def test_load_input_data(spr_gmi_evaluation):
     )
 
     input_data = load_retrieval_input_data(
-        input_files,
-        retrieval_input=[GMI(), Ancillary()],
-        geometry="on_swath"
+        input_files, retrieval_input=[GMI(), Ancillary()], geometry="on_swath"
     )
     assert "scan" in input_data.dims
     assert "pixel" in input_data.dims
@@ -113,9 +137,7 @@ def test_load_input_data(spr_gmi_evaluation):
     assert "scan_end" in input_data.attrs
 
     input_data = load_retrieval_input_data(
-        input_files,
-        retrieval_input=[GMI(), Ancillary()],
-        geometry="gridded"
+        input_files, retrieval_input=[GMI(), Ancillary()], geometry="gridded"
     )
     assert "latitude" in input_data.dims
     assert "longitude" in input_data.dims
@@ -127,32 +149,67 @@ def test_load_input_data(spr_gmi_evaluation):
 @pytest.fixture
 def input_data_gridded(spr_gmi_evaluation):
     target_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "target"
+        / "target_20230701195312.nc"
     )
     target_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "target"
+        / "target_20230701195312.nc"
     )
     gmi_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "gmi" / "gmi_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "gmi"
+        / "gmi_20230701195312.nc"
     )
     gmi_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "gmi" / "gmi_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "gmi"
+        / "gmi_20230701195312.nc"
     )
     ancillary_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "ancillary" / "ancillary_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "ancillary"
+        / "ancillary_20230701195312.nc"
     )
     ancillary_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "ancillary" / "ancillary_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "ancillary"
+        / "ancillary_20230701195312.nc"
     )
     target_file = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "target"
+        / "target_20230701195312.nc"
     )
 
     input_files = InputFiles(
@@ -171,9 +228,7 @@ def input_data_gridded(spr_gmi_evaluation):
     )
 
     input_data = load_retrieval_input_data(
-        input_files,
-        retrieval_input=[GMI(), Ancillary()],
-        geometry="gridded"
+        input_files, retrieval_input=[GMI(), Ancillary()], geometry="gridded"
     )
     return input_data
 
@@ -181,32 +236,67 @@ def input_data_gridded(spr_gmi_evaluation):
 @pytest.fixture
 def input_data_on_swath(spr_gmi_evaluation):
     target_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "target"
+        / "target_20230701195312.nc"
     )
     target_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "target"
+        / "target_20230701195312.nc"
     )
     gmi_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "gmi" / "gmi_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "gmi"
+        / "gmi_20230701195312.nc"
     )
     gmi_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "gmi" / "gmi_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "gmi"
+        / "gmi_20230701195312.nc"
     )
     ancillary_file_gridded = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "ancillary" / "ancillary_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "ancillary"
+        / "ancillary_20230701195312.nc"
     )
     ancillary_file_on_swath = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "on_swath" / "ancillary" / "ancillary_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "on_swath"
+        / "ancillary"
+        / "ancillary_20230701195312.nc"
     )
     target_file = (
-        spr_gmi_evaluation / "spr" / "gmi" / "evaluation"
-        / "gridded" / "target" / "target_20230701195312.nc"
+        spr_gmi_evaluation
+        / "spr"
+        / "gmi"
+        / "evaluation"
+        / "gridded"
+        / "target"
+        / "target_20230701195312.nc"
     )
 
     input_files = InputFiles(
@@ -225,16 +315,13 @@ def input_data_on_swath(spr_gmi_evaluation):
     )
 
     input_data = load_retrieval_input_data(
-        input_files,
-        retrieval_input=[GMI(), Ancillary()],
-        geometry="on_swath"
+        input_files, retrieval_input=[GMI(), Ancillary()], geometry="on_swath"
     )
     return input_data
 
 
 @pytest.mark.parametrize(
-    "input_data_fixture",
-    ["input_data_gridded", "input_data_on_swath"]
+    "input_data_fixture", ["input_data_gridded", "input_data_on_swath"]
 )
 def test_process_tiled(input_data_fixture, request):
     """
@@ -251,6 +338,7 @@ def test_process_tiled(input_data_fixture, request):
         spatial_dims = ["scan", "pixel"]
 
     inputs = []
+
     def retrieval_fn(input_data):
         """
         Dummy retrieval function that stores all input in the 'inputs' variable.
@@ -265,12 +353,14 @@ def test_process_tiled(input_data_fixture, request):
         lons_rounded = (lons - np.round(lons)) > 0
         lats_rounded = (lats - np.round(lats)) > 0
 
-        results = xr.Dataset({
-            "surface_precip": (spatial_dims, lons),
-            "probability_of_precip": (spatial_dims, lats),
-            "precip_flag": (spatial_dims, lons_rounded),
-            "heavy_precip_flag": (spatial_dims, lats_rounded),
-        })
+        results = xr.Dataset(
+            {
+                "surface_precip": (spatial_dims, lons),
+                "probability_of_precip": (spatial_dims, lats),
+                "precip_flag": (spatial_dims, lons_rounded),
+                "heavy_precip_flag": (spatial_dims, lats_rounded),
+            }
+        )
         return results
 
     results = process_scene_spatial(
@@ -278,7 +368,7 @@ def test_process_tiled(input_data_fixture, request):
         tile_size=(64, 64),
         overlap=16,
         batch_size=None,
-        retrieval_fn=retrieval_fn
+        retrieval_fn=retrieval_fn,
     )
 
     for inpt in inputs:
@@ -319,8 +409,7 @@ def test_process_tiled(input_data_fixture, request):
 
 
 @pytest.mark.parametrize(
-    "input_data_fixture",
-    ["input_data_gridded", "input_data_on_swath"]
+    "input_data_fixture", ["input_data_gridded", "input_data_on_swath"]
 )
 def test_process_untiled(input_data_fixture, request):
     """
@@ -334,6 +423,7 @@ def test_process_untiled(input_data_fixture, request):
         spatial_dims = ["scan", "pixel"]
 
     inputs = []
+
     def retrieval_fn(input_data):
         """
         Dummy retrieval function that stores all input in the 'inputs' variable.
@@ -348,12 +438,14 @@ def test_process_untiled(input_data_fixture, request):
         lons_rounded = (lons - np.round(lons)) > 0
         lats_rounded = (lats - np.round(lats)) > 0
 
-        results = xr.Dataset({
-            "surface_precip": (spatial_dims, lons),
-            "probability_of_precip": (spatial_dims, lats),
-            "precip_flag": (spatial_dims, lons_rounded),
-            "heavy_precip_flag": (spatial_dims, lats_rounded),
-        })
+        results = xr.Dataset(
+            {
+                "surface_precip": (spatial_dims, lons),
+                "probability_of_precip": (spatial_dims, lats),
+                "precip_flag": (spatial_dims, lons_rounded),
+                "heavy_precip_flag": (spatial_dims, lats_rounded),
+            }
+        )
         return results
 
     results = process_scene_spatial(
@@ -361,7 +453,7 @@ def test_process_untiled(input_data_fixture, request):
         tile_size=None,
         overlap=16,
         batch_size=None,
-        retrieval_fn=retrieval_fn
+        retrieval_fn=retrieval_fn,
     )
 
     assert len(inputs) == 1
@@ -404,8 +496,7 @@ def test_process_untiled(input_data_fixture, request):
 
 
 @pytest.mark.parametrize(
-    "input_data_fixture",
-    ["input_data_gridded", "input_data_on_swath"]
+    "input_data_fixture", ["input_data_gridded", "input_data_on_swath"]
 )
 def test_process_tiled_batched(input_data_fixture, request):
     """
@@ -420,6 +511,7 @@ def test_process_tiled_batched(input_data_fixture, request):
         spatial_dims = ("scan", "pixel")
 
     inputs = []
+
     def retrieval_fn(input_data):
         """
         Dummy retrieval function that stores all input in the 'inputs' variable.
@@ -436,12 +528,14 @@ def test_process_tiled_batched(input_data_fixture, request):
         lons_rounded = (lons - np.round(lons)) > 0
         lats_rounded = (lats - np.round(lats)) > 0
 
-        results = xr.Dataset({
-            "surface_precip": (("batch",) + spatial_dims, lons),
-            "probability_of_precip": (("batch",) + spatial_dims, lats),
-            "precip_flag": (("batch",) + spatial_dims, lons_rounded),
-            "heavy_precip_flag": (("batch",) + spatial_dims, lats_rounded),
-        })
+        results = xr.Dataset(
+            {
+                "surface_precip": (("batch",) + spatial_dims, lons),
+                "probability_of_precip": (("batch",) + spatial_dims, lats),
+                "precip_flag": (("batch",) + spatial_dims, lons_rounded),
+                "heavy_precip_flag": (("batch",) + spatial_dims, lats_rounded),
+            }
+        )
         return results
 
     results = process_scene_spatial(
@@ -449,7 +543,7 @@ def test_process_tiled_batched(input_data_fixture, request):
         tile_size=(64, 64),
         overlap=16,
         batch_size=8,
-        retrieval_fn=retrieval_fn
+        retrieval_fn=retrieval_fn,
     )
 
     for inpt in inputs:
@@ -490,8 +584,7 @@ def test_process_tiled_batched(input_data_fixture, request):
 
 
 @pytest.mark.parametrize(
-    "input_data_fixture",
-    ["input_data_gridded", "input_data_on_swath"]
+    "input_data_fixture", ["input_data_gridded", "input_data_on_swath"]
 )
 def test_process_tabular(input_data_fixture, request):
     """
@@ -500,25 +593,22 @@ def test_process_tabular(input_data_fixture, request):
     input_data = request.getfixturevalue(input_data_fixture)
 
     inputs = []
+
     def retrieval_fn(input_data):
         """
         Dummy retrieval function that stores all input in the 'inputs' variable.
         """
         inputs.append(input_data)
         results = input_data[["obs_gmi"]].copy(deep=True)
-        results = results[{"channels_gmi": 0}].rename(
-            obs_gmi="surface_precip"
-        )
+        results = results[{"channels_gmi": 0}].rename(obs_gmi="surface_precip")
         return results
 
     results = process_scene_tabular(
-        input_data,
-        batch_size=256,
-        retrieval_fn=retrieval_fn
+        input_data, batch_size=256, retrieval_fn=retrieval_fn
     )
 
     for inpt in inputs[:-1]:
-        assert inpt.samples.size == 256
+        assert inpt.batch.size == 256
 
     if "scan" in input_data.dims:
         assert input_data.scan.size == results.scan.size
@@ -541,7 +631,7 @@ def test_evaluate_scene(geometry, spr_gmi_evaluation, tmp_path):
         geometry,
         ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
-        download=False
+        download=False,
     )
 
     target_data = xr.load_dataset(evaluator.target_gridded[0])[["surface_precip"]]
@@ -550,7 +640,7 @@ def test_evaluate_scene(geometry, spr_gmi_evaluation, tmp_path):
         target_data = target_data.interp(
             latitude=input_data.latitude,
             longitude=input_data.longitude,
-            method="nearest"
+            method="nearest",
         )
 
     def retrieval_fn(*args):
@@ -564,9 +654,7 @@ def test_evaluate_scene(geometry, spr_gmi_evaluation, tmp_path):
     evaluator.precip_quantification_metrics = metrics
 
     evaluator.evaluate_scene(
-        0, None, None, None, retrieval_fn, "spatial",
-        track=True,
-        output_path=tmp_path
+        0, None, None, None, retrieval_fn, "spatial", track=True, output_path=tmp_path
     )
 
     files = list(tmp_path.glob("results_*.nc"))
@@ -592,7 +680,7 @@ def test_quantification_metrics(geometry, spr_gmi_evaluation, tmp_path):
         geometry,
         ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
-        download=False
+        download=False,
     )
 
     metrics = evaluator.precip_quantification_metrics
@@ -628,17 +716,16 @@ def test_evaluate(geometry, spr_gmi_evaluation, tmp_path):
         geometry,
         ["gmi", "ancillary"],
         ipwgml_path=spr_gmi_evaluation,
-        download=False
+        download=False,
     )
 
     retrieval_fn = RetrievalFn(evaluator.target_gridded[0])
-
 
     evaluator.evaluate(
         retrieval_fn=retrieval_fn,
         input_data_format="spatial",
         n_processes=2,
-        output_path=tmp_path
+        output_path=tmp_path,
     )
 
     files = list(tmp_path.glob("results_*.nc"))

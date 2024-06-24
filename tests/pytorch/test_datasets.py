@@ -1,6 +1,7 @@
 """
 Tests for the ipwgml.pytorch.data module.
 """
+
 import torch
 
 from ipwgml.pytorch.datasets import SPRTabular, SPRSpatial
@@ -17,7 +18,7 @@ def test_dataset_spr_tabular(spr_gmi_on_swath_tabular_train):
         split="training",
         retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
-        download=False
+        download=False,
     )
 
     assert len(dataset) > 0
@@ -25,7 +26,7 @@ def test_dataset_spr_tabular(spr_gmi_on_swath_tabular_train):
     assert "obs_gmi" in x
     assert x["obs_gmi"].shape == (13,)
     assert "obs_geo_ir" in x
-    assert x["obs_geo_ir"].shape == (8,)
+    assert x["obs_geo_ir"].shape == (16,)
     assert "obs_geo" in x
     assert x["obs_geo"].shape == (64,)
     assert "ancillary" in x
@@ -44,7 +45,7 @@ def test_dataset_spr_tabular_stacked(spr_gmi_on_swath_tabular_train):
         retrieval_input=["gmi", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
         stack=True,
-        download=False
+        download=False,
     )
 
     assert len(dataset) > 0
@@ -66,7 +67,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
         retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
         ipwgml_path=data_path,
         download=False,
-        batch_size=batch_size
+        batch_size=batch_size,
     )
 
     assert len(dataset) > 0
@@ -74,7 +75,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
         if ind < len(dataset) - 1:
             assert "obs_gmi" in x
             assert x["obs_gmi"].shape == (batch_size, 13)
-            assert x["obs_geo_ir"].shape == (batch_size, 8)
+            assert x["obs_geo_ir"].shape == (batch_size, 16)
             assert x["obs_geo"].shape == (batch_size, 64)
             assert "ancillary" in x
             assert y.numel() == batch_size
@@ -87,11 +88,11 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
             {"name": "gmi", "channels": [0, -2, -1]},
             {"name": "geo", "nearest": True},
             {"name": "geo_ir", "nearest": True},
-            {"name": "ancillary", "variables": ["two_meter_temperature"]}
+            {"name": "ancillary", "variables": ["two_meter_temperature"]},
         ],
         ipwgml_path=data_path,
         download=False,
-        batch_size=batch_size
+        batch_size=batch_size,
     )
 
     assert len(dataset) > 0
@@ -100,7 +101,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
             assert "obs_gmi" in x
             assert x["obs_gmi"].shape == (batch_size, 3)
             assert x["obs_geo_ir"].shape == (batch_size, 1)
-            #assert x["obs_geo"].shape == (batch_size, 16)
+            assert x["obs_geo"].shape == (batch_size, 16)
             assert "ancillary" in x
             assert x["ancillary"].shape == (batch_size, 1)
             assert y.numel() == batch_size
@@ -117,7 +118,7 @@ def test_dataset_spr_spatial(spr_gmi_gridded_spatial_train):
         split="training",
         retrieval_input=["gmi", "ancillary", "geo_ir"],
         ipwgml_path=data_path,
-        download=False
+        download=False,
     )
 
     assert len(dataset) > 0
@@ -140,7 +141,7 @@ def test_dataset_spr_spatial_stacked(spr_gmi_gridded_spatial_train):
         retrieval_input=["gmi", "ancillary", "geo_ir"],
         stack=True,
         ipwgml_path=data_path,
-        download=False
+        download=False,
     )
 
     assert len(dataset) > 0

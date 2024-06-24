@@ -1,6 +1,7 @@
 """
 Tests for the ipwgml.data module.
 """
+
 from conftest import TEST_URL
 
 from ipwgml.data import list_files
@@ -21,7 +22,14 @@ def test_download_files_spr_gmi_gridded_spatial_train(spr_gmi_gridded_spatial_tr
     """
     Ensure that fixture successfully downloaded files.
     """
-    ds_path = spr_gmi_gridded_spatial_train / "spr" / "gmi" / "training" / "gridded" / "spatial"
+    ds_path = (
+        spr_gmi_gridded_spatial_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "gridded"
+        / "spatial"
+    )
     gmi_files = list((ds_path / "gmi").glob("*.nc"))
     assert len(gmi_files) == 2
     ancillary_files = list((ds_path / "ancillary").glob("*.nc"))
@@ -36,7 +44,14 @@ def test_download_files_spr_gmi_on_swath_tabular_train(spr_gmi_on_swath_tabular_
     """
     Ensure that fixture successfully downloaded files.
     """
-    ds_path = spr_gmi_on_swath_tabular_train / "spr" / "gmi" / "training" / "on_swath" / "tabular"
+    ds_path = (
+        spr_gmi_on_swath_tabular_train
+        / "spr"
+        / "gmi"
+        / "training"
+        / "on_swath"
+        / "tabular"
+    )
     files = list((ds_path / "gmi").glob("*.nc"))
     assert len(files) == 1
     files = list((ds_path / "ancillary").glob("*.nc"))
@@ -56,8 +71,8 @@ def test_download_files_spr_gmi_evaluation(spr_gmi_evaluation):
     assert len(files) == 1
     files = list((ds_path / "ancillary").glob("*.nc"))
     assert len(files) == 1
-    #files = list((ds_path / "geo_ir").glob("*.nc"))
-    #assert len(files) == 1
+    # files = list((ds_path / "geo_ir").glob("*.nc"))
+    # assert len(files) == 1
     files = list((ds_path / "target").glob("*.nc"))
     assert len(files) == 1
 
@@ -66,7 +81,7 @@ def test_download_files_spr_gmi_evaluation(spr_gmi_evaluation):
     assert len(files) == 1
     files = list((ds_path / "ancillary").glob("*.nc"))
     assert len(files) == 1
-    #files = list((ds_path / "geo_ir").glob("*.nc"))
-    #assert len(files) == 1
+    # files = list((ds_path / "geo_ir").glob("*.nc"))
+    # assert len(files) == 1
     files = list((ds_path / "target").glob("*.nc"))
     assert len(files) == 1

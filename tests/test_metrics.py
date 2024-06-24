@@ -1,6 +1,7 @@
 """
 Tests for the ipwgml.metrics module.
 """
+
 from concurrent.futures import ProcessPoolExecutor
 from typing import List
 
@@ -21,7 +22,7 @@ from ipwgml.metrics import (
     FAR,
     POD,
     HSS,
-    PRCurve
+    PRCurve,
 )
 
 
@@ -64,6 +65,7 @@ def evaluate_normal_preds(metric: Metric) -> None:
     y = np.random.normal(size=(100, 100)) + 10
     metric.update(x, y)
 
+
 def evaluate_normal_preds_with_invalid(metric: Metric) -> None:
     """
     Same as evaluate_normal_preds but predictions are set to NAN with a probability
@@ -92,7 +94,6 @@ def test_valid_fraction():
 
     result = valid_frac.compute()
     assert np.isclose(result.valid_fraction.data, 1, rtol=1e-2)
-
 
     valid_frac = ValidFraction()
     tasks = []
@@ -245,7 +246,6 @@ def evaluate_anticorrelated_preds(metric: Metric) -> None:
     metric.update(x, y)
 
 
-
 def test_correlation_coef_dep():
     """
     Ensure that the calculated correlation coefficient is close to -1 for
@@ -274,10 +274,9 @@ def test_correlation_coef_dep():
     assert np.isclose(result.correlation_coef.data, -1.0, atol=1e-2)
 
 
-
 def evaluate_random_spectral_field(
-        metrics: List[Metric],
-        size: int = (64, 64),
+    metrics: List[Metric],
+    size: int = (64, 64),
 ):
     """
     Generates predictions from a random spectral field by removing all variation with
@@ -285,11 +284,11 @@ def evaluate_random_spectral_field(
     """
     wny = 0.5 * np.arange(size[0]) / (size[0] - 1)
     wnx = 0.5 * np.arange(size[1]) / (size[1] - 1)
-    wn = np.sqrt(wny ** 2 + wnx[..., None] ** 2)
+    wn = np.sqrt(wny**2 + wnx[..., None] ** 2)
     scale = 0.5 / wn
 
     coeffs = np.random.normal(size=size)
-    coeffs /= 0.5 * np.pi * wn ** 2
+    coeffs /= 0.5 * np.pi * wn**2
     coeffs[0, 0] = 0.0
 
     coeffs_ret = coeffs.copy()
@@ -313,11 +312,12 @@ def test_spectral_coherence():
     n_jobs = 128
     pool = ProcessPoolExecutor(max_workers=8)
 
-
     tasks = []
     metrics = [spectral_coherence, mse]
     for _ in range(n_jobs):
-        tasks.append(pool.submit(evaluate_random_spectral_field, metrics, size=(64, 64)))
+        tasks.append(
+            pool.submit(evaluate_random_spectral_field, metrics, size=(64, 64))
+        )
     for task in tasks:
         task.result()
 
@@ -328,7 +328,6 @@ def test_spectral_coherence():
     assert result.effective_resolution.data == closest_scale
 
 
-
 def evaluate_always(metric):
     """
     Evaluates the given metric with detection prediction that are always true
@@ -337,6 +336,7 @@ def evaluate_always(metric):
     pred = np.ones((100, 100), dtype=bool)
     target = np.random.rand(100, 100) > 0.5
     metric.update(pred, target)
+
 
 def evaluate_never(metric):
     """
@@ -447,7 +447,6 @@ def test_hss():
         task.result()
     hss = metric.compute()
     assert np.isclose(hss.hss.data, 0.0, atol=1e-2)
-
 
 
 def evaluate_random_probability(metric):

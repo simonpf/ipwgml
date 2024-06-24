@@ -1,12 +1,9 @@
 import pytest
 
-from ipwgml.data import (
-    download_missing
-)
+from ipwgml.data import download_missing
 
 
 TEST_URL = "https://rain.atmos.colostate.edu/gprof_nn/ipwgml/.test"
-
 
 
 @pytest.fixture(scope="session")
@@ -17,7 +14,9 @@ def spr_gmi_gridded_spatial_train(tmp_path_factory):
     """
     dest = tmp_path_factory.mktemp("ipwgml")
     download_missing("spr/gmi/training/gridded/spatial/gmi", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/training/gridded/spatial/ancillary", dest, base_url=TEST_URL)
+    download_missing(
+        "spr/gmi/training/gridded/spatial/ancillary", dest, base_url=TEST_URL
+    )
     download_missing("spr/gmi/training/gridded/spatial/target", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/gridded/spatial/geo_ir", dest, base_url=TEST_URL)
     download_missing("spr/gmi/training/gridded/spatial/geo", dest, base_url=TEST_URL)
@@ -32,9 +31,15 @@ def spr_gmi_on_swath_tabular_train(tmp_path_factory):
     """
     dest = tmp_path_factory.mktemp("ipwgml")
     download_missing("spr/gmi/training/on_swath/tabular/gmi", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/training/on_swath/tabular/ancillary", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/training/on_swath/tabular/target", dest, base_url=TEST_URL)
-    download_missing("spr/gmi/training/on_swath/tabular/geo_ir", dest, base_url=TEST_URL)
+    download_missing(
+        "spr/gmi/training/on_swath/tabular/ancillary", dest, base_url=TEST_URL
+    )
+    download_missing(
+        "spr/gmi/training/on_swath/tabular/target", dest, base_url=TEST_URL
+    )
+    download_missing(
+        "spr/gmi/training/on_swath/tabular/geo_ir", dest, base_url=TEST_URL
+    )
     download_missing("spr/gmi/training/on_swath/tabular/geo", dest, base_url=TEST_URL)
     return dest
 

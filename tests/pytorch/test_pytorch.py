@@ -2,6 +2,7 @@
 Tests for the ipwgml.pytorch module
 ===================================
 """
+
 import pytest
 import torch
 from torch import nn
@@ -34,7 +35,9 @@ class DummyRetrieval(nn.Module):
                 f"Input tensor has unsupported number of dimensions {x.ndim}"
             )
 
-        pred = torch.zeros_like(x.select(dim=feature_axis, index=0)).unsqueeze(dim=feature_axis)
+        pred = torch.zeros_like(x.select(dim=feature_axis, index=0)).unsqueeze(
+            dim=feature_axis
+        )
         return {
             "surface_precip": pred,
             "probability_of_precip": pred,
@@ -49,11 +52,7 @@ def test_evaluate_tabular(geometry, spr_gmi_evaluation, tmp_path):
     """
     retrieval_input = ["gmi", "ancillary"]
     evaluator = Evaluator(
-        "gmi",
-        geometry,
-        retrieval_input,
-        ipwgml_path=spr_gmi_evaluation,
-        download=False
+        "gmi", geometry, retrieval_input, ipwgml_path=spr_gmi_evaluation, download=False
     )
 
     model = DummyRetrieval()
@@ -63,7 +62,7 @@ def test_evaluate_tabular(geometry, spr_gmi_evaluation, tmp_path):
         retrieval_fn=retrieval_fn,
         input_data_format="tabular",
         n_processes=1,
-        output_path=tmp_path
+        output_path=tmp_path,
     )
 
     files = list(tmp_path.glob("results_*.nc"))
@@ -79,11 +78,7 @@ def test_evaluate_tabular(geometry, spr_gmi_evaluation, tmp_path):
     """
     retrieval_input = ["gmi", "ancillary"]
     evaluator = Evaluator(
-        "gmi",
-        geometry,
-        retrieval_input,
-        ipwgml_path=spr_gmi_evaluation,
-        download=False
+        "gmi", geometry, retrieval_input, ipwgml_path=spr_gmi_evaluation, download=False
     )
 
     model = DummyRetrieval()
@@ -94,7 +89,7 @@ def test_evaluate_tabular(geometry, spr_gmi_evaluation, tmp_path):
         input_data_format="spatial",
         batch_size=2,
         n_processes=1,
-        output_path=tmp_path
+        output_path=tmp_path,
     )
 
     files = list(tmp_path.glob("results_*.nc"))
