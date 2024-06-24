@@ -1,28 +1,27 @@
 # Getting started
 
-This section describes how to get started with the IPWG SPR benchmar dataset.
+This section describes how to get started with the IPWG SPR benchmark dataset.
 
 While all data is currently hosted [here](https://rain.atmos.colostate.edu/gprof_nn/ipwgml/) and can
 be downloaded and used completely independently, the ``ipwgml`` provides functionality to make assessing
 and using the data easier.
 
-## Install the ``ipwg`` package
+## Install the ``ipwgml`` package
 
 The currently recommended way to install the package from the GitHub repository:
 
 ```
-pip install git+https://github.com/simonpf/ipwgml
+pip install git+https://github.com/simonpf/ipwgml#ipwgml[complete]
 ```
 
-> **Note**: The command above installs only a minimal set of external dependencies. In order to run the examples shown here, you should use the command ``pip install ipwgml[complete]``.
+> **Note**: The above command install all dependencies required to run the examples included here. Use ``pip install git+https://github.com/simonpf/ipwgml`` for a minimal installation.
 
 After successful installation, the ``ipwgml`` command should be available from the command line.
 
-## Manual data download
+## Data download using the ``ipwgml`` command
 
-```{note}
-While the manual data download is one way to obtain the SPR dataset, all ``ipwgml`` functionality provides an option to automatically download required data. Therefore, a manual download is not strictly required if you intend to use the data solely through the ``ipwgml`` package.
-```
+The ``ipwgml`` command line interface provides a command to download all or parts of the SPR dataset.
+
 
 ```
 ipwgml download --data_path /path/to/store/data --sensors gmi --splits training,validation,testing --geometries gridded --format spatial
@@ -38,6 +37,9 @@ This will download the gridded SPR training, validation, and testing data. The `
  - ``--formats`` A comma-separated list of the data formats to download. Available options are ``spatial`` for 2D
    training scenes and ``tabular`` for tabular data.
    
+```{note}
+While using the ``ipwgml`` command to download the data is one way to obtain the SPR dataset, all ``ipwgml`` functionality provides an option to automatically download required data. Therefore, a manual download is not strictly required if you intend to use the data solely through the ``ipwgml`` package.
+```
    
 ## Listing available files
 
@@ -52,7 +54,7 @@ The ``ipwgml`` package expects data to be located in a path called the ``ipwgml`
 ``ipwgml`` does its best to keep track of the data path between subsequent
 invocations to avoid downloading data multiple times.
 
-After a fresh install the ``data_path`` points to the current working directory.
+After a fresh install, the ``data_path`` points to the current working directory.
 To set an explicit ``data_path``, you can use the ``ipwgml config
 set_data_path`` command. This will create a ``ipwgml`` configuration file in the
 current user's configuration directory, which will allow the setting to persist

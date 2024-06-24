@@ -1,4 +1,4 @@
-# Machine-learning datasets created by the International Precipitation Working Group
+# The Satellite Precipitation Retrieval (SPR) benchmakr dataset created by the International Precipitation Working Group
 
 This documentation describes the ``ipwgml`` Python package, which provides functionality
 to access and use the satellite precipitation retrieval (SPR) benchmark dataset
