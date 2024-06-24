@@ -1131,6 +1131,7 @@ class Evaluator:
         tile_size: int | Tuple[int, int] | None = None,
         overlap: int | None = None,
         batch_size: int | None = None,
+        swath_boundaries: bool = False,
     ) -> "plt.Figure":
         """
         Plot retrieval results for a given retrieval scene.
@@ -1143,6 +1144,8 @@ class Evaluator:
             tile_size: The tile size to use for the retrieval or 'None' to apply no tiling.
             overlap: The overlap to apply for the tiling.
             batch_size: Maximum batch size for tiled spatial and tabular retrievals.
+            swath_boundaries: If 'True' will plot swath boundaries of the GPM
+                sensor.
         """
         try:
             from ipwgml.plotting import add_ticks
@@ -1203,6 +1206,10 @@ class Evaluator:
         add_ticks(ax, lon_ticks, lat_ticks, left=True, bottom=True)
         ax.coastlines()
 
+        if swath_boundaries:
+            pixel_inds = target_data.pixel_index
+            ax.contour(lons, lats, pixel_inds, levels=[-0.5], linestyles=["--"], colors=["k"])
+
         ax = fig.add_subplot(gs[0, 1], projection=crs)
         m = ax.pcolormesh(
             lons,
@@ -1218,6 +1225,9 @@ class Evaluator:
         ax.set_title("(b) Reference", loc="left")
         add_ticks(ax, lon_ticks, lat_ticks, left=False, bottom=True)
         ax.coastlines()
+        if swath_boundaries:
+            pixel_inds = target_data.pixel_index
+            ax.contour(lons, lats, pixel_inds, levels=[-0.5], linestyles=["--"], colors=["k"])
 
         fig.suptitle(date.strftime("%Y-%m-%d %H:%M:%S"))
 
