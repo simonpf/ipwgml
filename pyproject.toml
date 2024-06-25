@@ -30,7 +30,6 @@ maintainers = [
 ]
 dependencies = [
   "appdirs",
-  "cartopy",
   "click",
   "ipywidgets",
   "jupyter-book",
@@ -44,7 +43,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-complete = ["pytest", "torch", "xarray[complete]", "lightning"]
+complete = ["pytest", "torch", "xarray[complete]", "lightning", "cartopy"]
 
 [project.urls]
 "Source" = "https://github.com/simonpf/ipwgml/"
