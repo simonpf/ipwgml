@@ -261,6 +261,17 @@ def test_geo_input_tabular(spr_gmi_on_swath_tabular_train):
     assert "obs_geo" in inpt_data
     assert inpt_data["obs_geo"].shape[0] == len(cfg.channels)
     assert inpt_data["obs_geo"].shape[0] == cfg.features["obs_geo"]
+    assert (inpt_data["obs_geo"] > 100).any()
+
+    # Ensure that input is normalized.
+    inpt = {"name": "geo", "nearest": True, "normalize": "minmax"}
+    cfg = InputConfig.parse(inpt)
+    target_data = xr.load_dataset(target_files[0])
+    inpt_data = cfg.load_data(geo_files[0], target_time=target_data.time)
+    assert "obs_geo" in inpt_data
+    assert inpt_data["obs_geo"].shape[0] == len(cfg.channels)
+    assert inpt_data["obs_geo"].shape[0] == cfg.features["obs_geo"]
+    assert (inpt_data["obs_geo"] <= 1.1).all()
 
 
 def test_calculate_input_features():

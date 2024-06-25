@@ -553,6 +553,8 @@ class Geo(InputConfig):
         self.time_steps = time_steps
         self.nearest = nearest
         self._stats = None
+        self.normalize = normalize
+        self.nan = nan
 
     @property
     def name(self) -> str:
@@ -564,8 +566,17 @@ class Geo(InputConfig):
         xarray.Dataset containing summary statistics for the input.
         """
         if self._stats is None:
-            stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo_ir.nc"
-            self._stats = xr.load_dataset(stats_file)
+            stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo.nc"
+            stats = xr.load_dataset(stats_file)
+            mask = np.zeros((4, 16), dtype=bool)
+            if self.nearest:
+                mask[2, self.channels] = True
+            else:
+                for time_ind in self.time_steps:
+                    mask[time_ind, self.channels] = True
+            mask = mask.ravel()
+            self._stats = stats[{"features": mask}]
+
         return self._stats
 
     def load_data(self, geo_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
@@ -594,11 +605,13 @@ class Geo(InputConfig):
                     inds = np.abs(delta_t).argmin("time")
                     if "latitude" in inds.dims:
                         inds = inds.drop_vars(["latitude", "longitude"])
-                obs = geo_data.observations[{"time": inds}].transpose("channel", ...).data[None]
+                obs = geo_data.observations[{"time": inds}].transpose("channel", ...).data
             else:
                 obs = geo_data.observations[{"time": self.time_steps}].data
+                obs = np.reshape(obs, (-1,) + obs.shape[2:])
 
-        return {"obs_geo": np.reshape(obs, (-1,) + obs.shape[2:])}
+        obs = normalize(obs, self.stats, how=self.normalize, nan=self.nan)
+        return {"obs_geo": obs}
 
     @property
     def features(self) -> Dict[str, int]:
