@@ -30,9 +30,11 @@ maintainers = [
 ]
 dependencies = [
   "appdirs",
+  "cartopy",
   "click",
   "ipywidgets",
   "jupyter-book",
+  "matplotlib",
   "requests-cache",
   "rich",
   "scipy",
