@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import numpy as np
 import torch
 from torch.utils.data import Dataset
+import hdf5plugin
 import xarray as xr
 
 from ipwgml.definitions import ALL_INPUTS
@@ -121,7 +122,7 @@ class SPRTabular(Dataset):
                 " Please make sure that the ipwgml data path is correct or "
                 "set 'download' to True to download the file."
             )
-        self.target_data = xr.load_dataset(files[0])
+        self.target_data = xr.load_dataset(files[0], engine="h5netcdf")
         valid = ~self.target_config.get_mask(self.target_data)
         self.target_data = self.target_data[{"samples": valid}]
 
@@ -136,7 +137,7 @@ class SPRTabular(Dataset):
                     " Please make sure that the ipwgml data path is correct or "
                     "set 'download' to True to download the file."
                 )
-            input_data = xr.load_dataset(files[0])
+            input_data = xr.load_dataset(files[0], engine="h5netcdf")
             setattr(self, inpt.name + "_data", input_data[{"samples": valid}])
 
         self.rng = np.random.default_rng(seed=42)

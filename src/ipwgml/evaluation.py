@@ -297,7 +297,7 @@ def load_retrieval_input_data(
                 input_data.attrs[name] = attr
 
     ancillary_file = input_files.get_path("ancillary", geometry)
-    ancillary_data = xr.load_dataset(ancillary_file)
+    ancillary_data = xr.load_dataset(ancillary_file, engine="h5netcdf")
     if "latitude" not in ancillary_data.dims:
         input_data["latitude"] = (spatial_dims, ancillary_data.latitude.data)
         input_data["longitude"] = (spatial_dims, ancillary_data.longitude.data)

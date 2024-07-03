@@ -213,7 +213,7 @@ class PMW(InputConfig):
         """
         if self._obs_stats is None:
             stats_file = Path(__file__).parent / "files" / "stats" / f"obs_{self.name}.nc"
-            self._obs_stats = xr.load_dataset(stats_file)
+            self._obs_stats = xr.load_dataset(stats_file, engine="h5netcdf")
             if self.channels is not None:
                 self._obs_stats = self._obs_stats[{"features": self.channels}]
         return self._obs_stats
@@ -225,7 +225,7 @@ class PMW(InputConfig):
         """
         if self._ang_stats is None:
             stats_file = Path(__file__).parent / "files" / "stats" / f"eia_{self.name}.nc"
-            self._ang_stats = xr.load_dataset(stats_file)
+            self._ang_stats = xr.load_dataset(stats_file, engine="h5netcdf")
             if self.channels is not None:
                 self._ang_stats = self._ang_stats[{"features": self.channels}]
         return self._ang_stats
@@ -371,7 +371,7 @@ class Ancillary(InputConfig):
         if self._stats is None:
             stats_file = Path(__file__).parent / "files" / "stats" / "ancillary.nc"
             inds = [ind for ind, var in enumerate(ANCILLARY_VARIABLES) if var in self.variables]
-            self._stats = xr.load_dataset(stats_file)[{"features": inds}]
+            self._stats = xr.load_dataset(stats_file, engine="h5netcdf")[{"features": inds}]
         return self._stats
 
     def load_data(self, ancillary_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
@@ -460,9 +460,9 @@ class GeoIR(InputConfig):
         if self._stats is None:
             stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo_ir.nc"
             if self.nearest:
-                self._stats = xr.load_dataset(stats_file)[{"features": 8}]
+                self._stats = xr.load_dataset(stats_file, engine="h5netcdf")[{"features": 8}]
             else:
-                self._stats = xr.load_dataset(stats_file)[{"features": self.time_steps}]
+                self._stats = xr.load_dataset(stats_file, engine="h5netcdf")[{"features": self.time_steps}]
         return self._stats
 
     def load_data(self, geo_data_file: Path, target_time: xr.DataArray) -> xr.Dataset:
@@ -568,7 +568,7 @@ class Geo(InputConfig):
         """
         if self._stats is None:
             stats_file = Path(__file__).parent / "files" / "stats" / "obs_geo.nc"
-            stats = xr.load_dataset(stats_file)
+            stats = xr.load_dataset(stats_file, engine="h5netcdf")
             mask = np.zeros((4, 16), dtype=bool)
             if self.nearest:
                 mask[2, self.channels] = True
