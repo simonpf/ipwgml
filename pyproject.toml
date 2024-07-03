@@ -32,6 +32,7 @@ dependencies = [
   "appdirs",
   "click",
   "ipywidgets",
+  "hdf5plugin",
   "jupyter-book",
   "matplotlib",
   "requests-cache",

@@ -53,6 +53,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Union
 
+import hdf5plugin
 import numpy as np
 import xarray as xr
 
