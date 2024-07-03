@@ -32,9 +32,6 @@ dependencies = [
   "appdirs",
   "click",
   "ipywidgets",
-  "numpy<2",
-  "netCDF4<1.7",
-  "h5netcdf",
   "hdf5plugin",
   "jupyter-book",
   "matplotlib",
@@ -43,7 +40,7 @@ dependencies = [
   "scipy",
   "seaborn",
   "toml",
-  "xarray"
+  "xarray[io]"
 ]
 
 [project.optional-dependencies]
