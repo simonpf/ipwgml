@@ -2,19 +2,21 @@
 
 This section describes how to get started with the IPWG SPR benchmark dataset.
 
-While all data is currently hosted [here](https://rain.atmos.colostate.edu/gprof_nn/ipwgml/) and can
-be downloaded and used completely independently, the ``ipwgml`` provides functionality to make assessing
-and using the data easier.
+While all data is currently hosted
+[here](https://rain.atmos.colostate.edu/gprof_nn/ipwgml/) and can be downloaded
+and used completely independently, the ``ipwgml`` Python package provides
+functionality to make assessing and using the data easier.
 
-## Install the ``ipwgml`` package
+## Installing the ``ipwgml`` package
 
 The currently recommended way to install the package from the GitHub repository:
 
 ```
-pip install git+https://github.com/simonpf/ipwgml#ipwgml[complete]
+pip install ipwgml[extra]@git+https://github.com/simonpf/ipwgml
 ```
 
-> **Note**: The above command install all dependencies required to run the examples included here. Use ``pip install git+https://github.com/simonpf/ipwgml`` for a minimal installation.
+> **Note**: The above command installs all dependencies required to run the examples included here. If
+this is a concern, use ``pip install git+https://github.com/simonpf/ipwgml`` for a minimal installation.
 
 After successful installation, the ``ipwgml`` command should be available from the command line.
 
@@ -48,7 +50,7 @@ While using the ``ipwgml`` command to download the data is one way to obtain the
  table listing relative locations of each dataset and how many files it
  comprises.
  
-## Configuring the data_path
+## Configuring the data path
 
 The ``ipwgml`` package expects data to be located in a path called the ``ipwgml`` data path.
 ``ipwgml`` does its best to keep track of the data path between subsequent
