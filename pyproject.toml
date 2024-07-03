@@ -32,6 +32,7 @@ dependencies = [
   "appdirs",
   "click",
   "ipywidgets",
+  "h5netcdf",
   "hdf5plugin",
   "jupyter-book",
   "matplotlib",
@@ -44,7 +45,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-complete = ["pytest", "torch", "xarray[complete]", "lightning", "cartopy"]
+complete = ["pytest", "torch", "lightning", "cartopy"]
 
 [project.urls]
 "Source" = "https://github.com/simonpf/ipwgml/"
