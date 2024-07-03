@@ -32,7 +32,7 @@ dependencies = [
   "appdirs",
   "click",
   "ipywidgets",
-  "netCDF4!=1.7.1",
+  "netCDF4<1.7",
   "h5netcdf",
   "hdf5plugin",
   "jupyter-book",
