@@ -13,7 +13,7 @@ def test_dataset_spr_tabular(spr_gmi_on_swath_tabular_train):
     """
     data_path = spr_gmi_on_swath_tabular_train
     dataset = SPRTabular(
-        sensor="gmi",
+        reference_sensor="gmi",
         geometry="on_swath",
         split="training",
         retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
@@ -39,7 +39,7 @@ def test_dataset_spr_tabular_stacked(spr_gmi_on_swath_tabular_train):
     """
     data_path = spr_gmi_on_swath_tabular_train
     dataset = SPRTabular(
-        sensor="gmi",
+        reference_sensor="gmi",
         geometry="on_swath",
         split="training",
         retrieval_input=["gmi", "geo_ir", "ancillary"],
@@ -61,7 +61,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
     batch_size = 1024
     data_path = spr_gmi_on_swath_tabular_train
     dataset = SPRTabular(
-        sensor="gmi",
+        reference_sensor="gmi",
         geometry="on_swath",
         split="training",
         retrieval_input=["gmi", "geo", "geo_ir", "ancillary"],
@@ -81,7 +81,7 @@ def test_dataset_spr_tabular_batched(spr_gmi_on_swath_tabular_train):
             assert y.numel() == batch_size
 
     dataset = SPRTabular(
-        sensor="gmi",
+        reference_sensor="gmi",
         geometry="on_swath",
         split="training",
         retrieval_input=[
@@ -113,7 +113,7 @@ def test_dataset_spr_spatial(spr_gmi_gridded_spatial_train):
     """
     data_path = spr_gmi_gridded_spatial_train
     dataset = SPRSpatial(
-        sensor="gmi",
+        reference_sensor="gmi",
         geometry="gridded",
         split="training",
         retrieval_input=["gmi", "ancillary", "geo_ir"],
@@ -135,7 +135,7 @@ def test_dataset_spr_spatial_stacked(spr_gmi_gridded_spatial_train):
     """
     data_path = spr_gmi_gridded_spatial_train
     dataset = SPRSpatial(
-        sensor="gmi",
+        reference_sensor="gmi",
         geometry="gridded",
         split="training",
         retrieval_input=["gmi", "ancillary", "geo_ir"],
