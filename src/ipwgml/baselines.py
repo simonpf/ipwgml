@@ -17,7 +17,7 @@ BASELINES_GMI = {
 
 
 def load_baseline_results(
-    sensor: str, baselines: Optional[List[str]] = None
+    reference_sensor: str, baselines: Optional[List[str]] = None
 ) -> xr.Dataset:
     """
     Load baseline results.
@@ -29,10 +29,12 @@ def load_baseline_results(
     Return:
         An xarray.Dataset containing the baseline results.
     """
-    if sensor.lower() == "gmi":
+    if reference_sensor.lower() == "gmi":
         BASELINES = BASELINES_GMI
     else:
-        raise ValueError("Currently on the sensor GMI is supported.")
+        raise ValueError(
+            "Currently only 'GMI' is supported as reference sensor."
+        )
 
     if baselines is None:
         baselines = BASELINES.keys()

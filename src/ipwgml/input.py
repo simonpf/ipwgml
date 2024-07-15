@@ -604,7 +604,7 @@ class Geo(InputConfig):
                 else:
                     delta_t = geo_data.time - target_time
                     inds = np.abs(delta_t).argmin("time")
-                    if "latitude" in inds.dims:
+                    if "latitude" in inds.coords:
                         inds = inds.drop_vars(["latitude", "longitude"])
                 obs = geo_data.observations[{"time": inds}].transpose("channel", ...).data
             else:

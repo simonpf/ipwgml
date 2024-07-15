@@ -9,6 +9,7 @@ from typing import List
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FixedLocator
+import pandas as pd
 import seaborn as sns
 
 
@@ -46,4 +47,4 @@ def add_ticks(
 
 cmap_precip = sns.cubehelix_palette(start=1.50, rot=-0.9, as_cmap=True, hue=0.8, dark=0.2, light=0.9)
 cmap_tbs = sns.cubehelix_palette(start=2.2, rot=0.9, as_cmap=True, hue=1.3, dark=0.2, light=0.8, reverse=True)
-cmap_tbs = sns.color_palette("rocket_r", as_cmap=True)
+cmap_tbs = sns.color_palette("rocket", as_cmap=True)

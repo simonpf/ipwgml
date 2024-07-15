@@ -25,7 +25,7 @@ def open_if_required(path_or_dataset: str | Path | xr.Dataset) -> xr.Dataset:
          An xarray.Dataset providing access to the loaded data.
     """
     if isinstance(path_or_dataset, (str, Path)):
-        handle = xr.open_dataset(path_or_dataset)
+        handle = xr.open_dataset(path_or_dataset, engine="h5netcdf")
         path_or_dataset = handle
     else:
         handle = None

@@ -38,7 +38,7 @@ class SPRTabular(Dataset):
 
     def __init__(
         self,
-        sensor: str,
+        reference_sensor: str,
         geometry: str,
         split: str,
         batch_size: Optional[int] = None,
@@ -52,7 +52,7 @@ class SPRTabular(Dataset):
     ):
         """
         Args:
-            sensor: The sensor for which to load the benchmark dataset.
+            reference_sensor: The reference_sensor for which to load the benchmark dataset.
             geometry: Whether to load on_swath or regridded observations.
             split: Whether to load training ('training'), validation ('validation'), or
                  test ('testing') splits.
@@ -79,9 +79,9 @@ class SPRTabular(Dataset):
         else:
             ipwgml_path = Path(ipwgml_path)
 
-        if not sensor.lower() in ["gmi", "atms"]:
-            raise ValueError("Sensor must be one of ['gmi', 'atms'].")
-        self.sensor = sensor.lower()
+        if not reference_sensor.lower() in ["gmi", "atms"]:
+            raise ValueError("Reference_Sensor must be one of ['gmi', 'atms'].")
+        self.reference_sensor = reference_sensor.lower()
 
         if not geometry.lower() in ["gridded", "on_swath"]:
             raise ValueError("Geomtry must be one of ['gridded', 'on_swath'].")
@@ -112,7 +112,7 @@ class SPRTabular(Dataset):
         self.target_data = None
 
         # Load target data and mask
-        dataset = f"spr/{self.sensor}/{self.split}/{self.geometry}/tabular/"
+        dataset = f"spr/{self.reference_sensor}/{self.split}/{self.geometry}/tabular/"
         if download:
             download_missing(dataset + "target", ipwgml_path, progress_bar=True)
         files = list((ipwgml_path / dataset / "target").glob("*.nc"))
@@ -122,7 +122,10 @@ class SPRTabular(Dataset):
                 " Please make sure that the ipwgml data path is correct or "
                 "set 'download' to True to download the file."
             )
-        self.target_data = xr.load_dataset(files[0], engine="h5netcdf")
+        self.target_data = xr.load_dataset(
+            files[0],
+            engine="h5netcdf"
+        )
         valid = ~self.target_config.get_mask(self.target_data)
         self.target_data = self.target_data[{"samples": valid}]
 
@@ -269,7 +272,7 @@ class SPRSpatial:
 
     def __init__(
         self,
-        sensor: str,
+        reference_sensor: str,
         geometry: str,
         split: str,
         retrieval_input: List[str | dict[str | Any] | InputConfig] = None,
@@ -281,7 +284,7 @@ class SPRSpatial:
     ):
         """
         Args:
-            sensor: The sensor for which to load the benchmark dataset.
+            reference_sensor: The reference_sensor for which to load the benchmark dataset.
             geometry: Whether to load on_swath or regridded observations.
             split: Whether to load 'training', 'validation', or
                  'testing' splits.
@@ -306,9 +309,9 @@ class SPRSpatial:
         else:
             ipwgml_path = Path(ipwgml_path)
 
-        if not sensor.lower() in ["gmi", "atms"]:
-            raise ValueError("Sensor must be one of ['gmi', 'atms'].")
-        self.sensor = sensor.lower()
+        if not reference_sensor.lower() in ["gmi", "atms"]:
+            raise ValueError("Reference_Sensor must be one of ['gmi', 'atms'].")
+        self.reference_sensor = reference_sensor.lower()
 
         if not geometry.lower() in ["gridded", "on_swath"]:
             raise ValueError("Geomtry must be one of ['gridded', 'on_swath'].")
@@ -337,7 +340,7 @@ class SPRSpatial:
         self.ancillary = None
         self.target = None
 
-        dataset = f"spr/{self.sensor}/{self.split}/{self.geometry}/spatial/"
+        dataset = f"spr/{self.reference_sensor}/{self.split}/{self.geometry}/spatial/"
         for inpt in self.retrieval_input:
             if download:
                 download_missing(dataset + inpt.name, ipwgml_path, progress_bar=True)
@@ -395,7 +398,10 @@ class SPRSpatial:
             files = getattr(self, inpt.name, None)
             if files is None:
                 continue
-            data = inpt.load_data(files[ind], target_time=target_time)
+            data = inpt.load_data(
+                files[ind],
+                target_time=target_time,
+            )
             for name, arr in data.items():
                 input_data[name] = torch.tensor(arr.astype(np.float32))
 

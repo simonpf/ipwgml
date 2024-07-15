@@ -21,7 +21,8 @@ The SPR dataset aims to be easy to use while supporting a wide range of retrieva
 
 | Configuration name | Possible values               | Significance                                                                                                             |   |
 |--------------------|-------------------------------|--------------------------------------------------------------------------------------------------------------------------|---|
-| Reference sensor   | GMI, ATMS                     | The sensor whose overpasses over CONUS for the basis for the dataset                                                     |   |
+| Reference sensor   | GMI, ATMS                     | The sensor whose overpasses over CONUS form the basis of the dataset                                                     |   |
+
 | Geometry           | on-swath, gridded             | Whether observations are on the native spatial sampling of the sensor or re-gridded to a regular latitude-longitude grid |   |
 | Training split     | training, validation, test | Intended stage of the ML training workflow                                                                               |   |
 | Format             | spatial, tabular              | Format of the training data: 2D scenes or flattened samples                                                              |   |

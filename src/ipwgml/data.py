@@ -16,13 +16,14 @@ import re
 import click
 import requests
 from requests_cache import CachedSession
+from requests import Session
 from rich.progress import Progress
 
 from ipwgml.definitions import (
     ALL_INPUTS,
     FORMATS,
     GEOMETRIES,
-    SENSORS,
+    REFERENCE_SENSORS,
     SPLITS,
 )
 from ipwgml import config
@@ -52,7 +53,7 @@ def list_files(relative_path: str, base_url: Optional[str] = None) -> List[str]:
     if base_url is None:
         base_url = BASE_URL
     url = base_url + "/" + relative_path
-    session = CachedSession()
+    session = Session()
     resp = session.get(url)
     resp.raise_for_status()
     text = resp.text
@@ -195,14 +196,14 @@ def download_missing(
 
 @click.command()
 @click.option("--data_path", type=str, default=None)
-@click.option("--sensors", type=str, default=None)
+@click.option("--reference_sensors", type=str, default=None)
 @click.option("--geometries", type=str, default=None)
 @click.option("--formats", type=str, default=None)
 @click.option("--splits", type=str, default=None)
 @click.option("--inputs", type=str, default=None)
 def cli(
     data_path: Optional[str] = None,
-    sensors: Optional[str] = None,
+    reference_sensors: Optional[str] = None,
     geometries: Optional[str] = None,
     formats: Optional[str] = None,
     splits: Optional[str] = None,
@@ -221,15 +222,15 @@ def cli(
             LOGGER.error("The provided 'data_path' does not exist.")
             return 1
 
-    if sensors is None:
-        sensors = SENSORS
+    if reference_sensors is None:
+        reference_sensors = REFERENCE_SENSORS
     else:
-        sensors = [sensor.strip() for sensor in sensors.split(",")]
-        for sensor in sensors:
-            if sensor not in SENSORS:
+        reference_sensors = [sensor.strip() for sensor in reference_sensors.split(",")]
+        for sensor in reference_sensors:
+            if sensor not in REFERENCE_SENSORS:
                 LOGGER.error(
-                    "The sensor '%s' is currently not supported. Currently supported sensors "
-                    f"are {SENSORS}."
+                    "The sensor '%s' is currently not supported. Currently supported reference_sensors "
+                    f"are {REFERENCE_SENSORS}."
                 )
                 return 1
 
@@ -283,7 +284,7 @@ def cli(
 
     LOGGER.info(f"Starting data download to {data_path}.")
 
-    for sensor in sensors:
+    for sensor in reference_sensors:
         for geometry in geometries:
             for inpt in inputs + ["target"]:
                 for fmt in formats:

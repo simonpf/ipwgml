@@ -32,7 +32,7 @@ N_CLASSES = {
 
 ALL_INPUTS = ["gmi", "geo", "geo_ir", "ancillary"]
 
-SENSORS = ["gmi"]
+REFERENCE_SENSORS = ["gmi"]
 GEOMETRIES = ["gridded", "on_swath"]
 SPLITS = ["training", "validation", "testing", "evaluation"]
 FORMATS = ["spatial", "tabular"]

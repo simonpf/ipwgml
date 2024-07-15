@@ -691,7 +691,7 @@ class Evaluator:
 
     def __init__(
         self,
-        sensor: str,
+        reference_sensor: str,
         geometry: str,
         retrieval_input: Optional[List[str | Dict[str, Any | InputConfig]]] = None,
         target_config=None,
@@ -700,7 +700,7 @@ class Evaluator:
     ):
         """
         Args:
-            sensor: The name of SPR sensor
+            reference_sensor: The name of SPR reference sensor
             geometry: The geometry of  the retrieval. 'gridded' for retrievals operating on
                 the regridded input observations; 'on_swath' for retrievals operating on the
                 nativ swath-based observations.
@@ -715,7 +715,7 @@ class Evaluator:
         else:
             ipwgml_path = Path(ipwgml_path)
 
-        self.sensor = sensor
+        self.reference_sensor = reference_sensor
         self.geometry = geometry
 
         if retrieval_input is None:
@@ -749,24 +749,25 @@ class Evaluator:
         ]
         self._prob_heavy_precip_detection_metrics = [ipwgml.metrics.PRCurve()]
 
-        for geometry in ["gridded", "on_swath"]:
-            dataset = f"spr/{self.sensor}/evaluation/{geometry}/"
-            for inpt in self.retrieval_input:
-                if download:
-                    download_missing(
-                        dataset + inpt.name, ipwgml_path, progress_bar=True
-                    )
-                files = sorted(list((ipwgml_path / dataset / inpt.name).glob("*.nc")))
-                setattr(self, inpt.name + "_" + geometry, files)
+        dataset = f"spr/{self.reference_sensor}/evaluation/{self.geometry}/"
+        for inpt in self.retrieval_input:
+            if download:
+                download_missing(
+                    dataset + inpt.name, ipwgml_path, progress_bar=True
+                )
+            files = sorted(list((ipwgml_path / dataset / inpt.name).glob("*.nc")))
+            setattr(self, inpt.name + "_" + self.geometry, files)
 
-            if getattr(self, f"ancillary_{geometry}", None) is None:
+            if getattr(self, f"ancillary_{self.geometry}", None) is None:
                 if download:
                     download_missing(
                         dataset + "ancillary", ipwgml_path, progress_bar=True
                     )
                 files = sorted(list((ipwgml_path / dataset / "ancillary").glob("*.nc")))
-                setattr(self, "ancillary" + "_" + geometry, files)
+                setattr(self, "ancillary" + "_" + self.geometry, files)
 
+        for geometry in ["gridded", "on_swath"]:
+            dataset = f"spr/{self.reference_sensor}/evaluation/{geometry}/"
             if download:
                 download_missing(dataset + "target", ipwgml_path, progress_bar=True)
             files = sorted(list((ipwgml_path / dataset / "target").glob("*.nc")))
@@ -905,7 +906,7 @@ class Evaluator:
 
     def __repr__(self):
         return (
-            f"Evaluator(sensor='{self.sensor}', geometry='{self.geometry}', "
+            f"Evaluator(reference_sensor='{self.reference_sensor}', geometry='{self.geometry}', "
             f"ipwgml_path='{self.ipwgml_path}')"
         )
 
@@ -930,7 +931,7 @@ class Evaluator:
             raise IndexError("'index' exceeds number of availale collocation scenes.")
         return InputFiles(
             self.target_gridded[index],
-            self.target_on_swath[index],
+            self.target_on_swath[index] if hasattr(self, "target_on_swath") else None,
             self.gmi_gridded[index] if hasattr(self, "gmi_gridded") else None,
             self.gmi_on_swath[index] if hasattr(self, "gmi_on_swath") else None,
             self.atms_gridded[index] if hasattr(self, "atms_gridded") else None,
@@ -1145,7 +1146,7 @@ class Evaluator:
             overlap: The overlap to apply for the tiling.
             batch_size: Maximum batch size for tiled spatial and tabular retrievals.
             swath_boundaries: If 'True' will plot swath boundaries of the GPM
-                sensor.
+                reference_sensor.
         """
         try:
             from ipwgml.plotting import add_ticks
@@ -1268,7 +1269,7 @@ class Evaluator:
         results["algorithm"] = (("algorithm",), [name])
 
         if include_baselines:
-            results_b = baselines.load_baseline_results(self.sensor)
+            results_b = baselines.load_baseline_results(self.reference_sensor)
             vars = list(results.variables.keys())
             results = xr.concat([results, results_b[vars]], dim="algorithm")
 
@@ -1282,6 +1283,123 @@ class Evaluator:
             data[f"{full_name} {unit_str}"] = results[var].data
 
         return pd.DataFrame(data=data, index=results.algorithm)
+
+
+
+    def plot_precip_quantification_results(
+            self,
+            name: Optional[str] = None,
+            include_baselines: bool = True,
+            other_results = None,
+            n_col: int = 4
+    ) -> "plt.Figure":
+        """
+        Plot precipitation quantification results
+
+        Produces a plot showing the results from the precipitation quantification metrics.
+
+        Args:
+            name: Name to use for the results of the current retrieval.
+            include_baselines: Whether or not to include results from the baseline retrievals.
+            n_col: The number of colums to use for the plot.
+
+        Return:
+            The matplotlib.Figure containing the plotted results.
+        """
+        from ipwgml.plotting import set_style
+        import matplotlib.pyplot as plt
+        from matplotlib.gridspec import GridSpec
+        import seaborn as sns
+
+        set_style()
+        metrics = []
+        full_names = []
+        units = []
+        order = []
+
+        palette = []
+
+        results = []
+        for metric in self.precip_quantification_metrics:
+            res_m = metric.compute()
+            drop = [var for var in res_m.variables if len(res_m[var].dims) > 0]
+            results.append(res_m.drop_vars(drop))
+
+        results = xr.merge(results).expand_dims("algorithm")
+        results["algorithm"] = (("algorithm",), [name])
+        for var in results.variables:
+            if str(var) == "algorithm":
+                continue
+            metrics.append(var)
+            full_names.append(results[var].attrs["full_name"])
+            units.append(results[var].attrs["unit"])
+
+        if include_baselines:
+            results_b = baselines.load_baseline_results(self.reference_sensor)
+            vars = list(results.variables.keys())
+            order += list(results_b["algorithm"].data)
+            results = xr.concat([results, results_b[vars]], dim="algorithm")
+            colors = {ord: "grey" for ord in order}
+
+        c_ind = 0
+        results_o = []
+        if other_results is not None:
+            for other_name, res in other_results.items():
+                res = res.copy()
+                res["algorithm"] = (("algorithm",), [other_name])
+                vars = list(results.variables.keys())
+                results_o.append(res[vars])
+                order.append(other_name)
+                colors[other_name] = f"C{c_ind}"
+                c_ind += 1
+            results = xr.concat([results] + results_o, dim="algorithm")
+
+        results = xr.merge(results.values()).to_dataframe()
+        results = results.reset_index()
+
+        melted = pd.melt(results, id_vars="algorithm", var_name="metric", value_name="value")
+        melted = melted.reset_index()
+
+        n_metrics = len(metrics)
+
+        n_row = ceil(n_metrics / n_col)
+        fig = plt.figure(figsize=(n_col * 4, n_row * 4))
+        gs = GridSpec(n_row, n_col, wspace=0.3)
+
+        last_row = ceil(len(metrics) / n_col)
+        rem = len(metrics) % n_col
+
+        for ind, (metric, full_name, unit) in enumerate(zip(
+                metrics,
+                full_names,
+                units
+        )):
+            row = ind // n_col
+            col = ind % n_col
+            ax = fig.add_subplot(gs[row, col])
+            res = melted.loc[melted["metric"] == metric]
+
+            sns.barplot(
+                x="algorithm",
+                y="value",
+                data=res,
+                order=order,
+                palette=colors,
+                hue="algorithm"
+            )
+            ax.set_title(f"({chr(ord('a') + ind)}) {full_name}", loc="left")
+            unit_str = f"[${unit}$]" if len(unit) > 0 else ""
+            ax.set_ylabel(f"{full_name} " + unit_str)
+
+            if row == last_row - 1 or (row == last_row - 2 and col >= rem):
+                for label in ax.xaxis.get_ticklabels():
+                    label.set_rotation(90)
+                ax.set_xlabel("Algorithm")
+            else:
+                for label in ax.xaxis.get_ticklabels():
+                    label.set_visible(False)
+                ax.set_xlabel("")
+
 
     def get_precip_detection_results(
         self, name: Optional[str] = None, include_baselines: bool = True
@@ -1308,7 +1426,7 @@ class Evaluator:
         results["algorithm"] = (("algorithm",), [name])
 
         if include_baselines:
-            results_b = baselines.load_baseline_results(self.sensor)
+            results_b = baselines.load_baseline_results(self.reference_sensor)
             vars = list(results.variables.keys())
             results = xr.concat([results, results_b[vars]], dim="algorithm")
 
@@ -1349,7 +1467,7 @@ class Evaluator:
         results["algorithm"] = (("algorithm",), [name])
 
         if include_baselines:
-            results_b = baselines.load_baseline_results(self.sensor)
+            results_b = baselines.load_baseline_results(self.reference_sensor)
             vars = list(results.variables.keys())
             results = xr.concat([results, results_b[vars]], dim="algorithm")
 
@@ -1389,7 +1507,7 @@ class Evaluator:
         results["algorithm"] = (("algorithm",), [name])
 
         if include_baselines:
-            results_b = baselines.load_baseline_results(self.sensor)
+            results_b = baselines.load_baseline_results(self.reference_sensor)
             vars = list(results.variables.keys())
             results = xr.concat([results, results_b[vars]], dim="algorithm")
 
@@ -1432,7 +1550,7 @@ class Evaluator:
         results["algorithm"] = (("algorithm",), [name])
 
         if include_baselines:
-            results_b = baselines.load_baseline_results(self.sensor)
+            results_b = baselines.load_baseline_results(self.reference_sensor)
             vars = list(results.variables.keys())
             results = xr.concat([results, results_b[vars]], dim="algorithm")
 
