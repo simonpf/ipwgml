@@ -12,7 +12,7 @@ functionality to make assessing and using the data easier.
 The currently recommended way to install the package from the GitHub repository:
 
 ```
-pip install ipwgml[extra]@git+https://github.com/simonpf/ipwgml
+pip install ipwgml[complete]@git+https://github.com/simonpf/ipwgml
 ```
 
 > **Note**: The above command installs all dependencies required to run the examples included here. If
