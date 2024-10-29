@@ -1,6 +1,9 @@
 import pytest
 
-from ipwgml.data import download_missing
+from ipwgml.data import (
+    download_missing,
+    download_dataset
+)
 
 
 TEST_URL = "https://rain.atmos.colostate.edu/gprof_nn/ipwgml/.test"
@@ -42,6 +45,23 @@ def spr_gmi_on_swath_tabular_train(tmp_path_factory):
     )
     download_missing("spr/gmi/training/on_swath/tabular/geo", dest, base_url=TEST_URL)
     return dest
+
+
+@pytest.fixture(scope="session")
+def spr_gmi_on_swath_tabular_train_dataset(tmp_path_factory):
+    """
+    Fixture to download satellite-precipitation retrieval benchmark data for GMI with
+    on_swath geometry.
+    """
+    return download_dataset(
+        "spr",
+        "gmi",
+        ["gmi"],
+        split="training",
+        geometry="on_swath",
+        format="tabular",
+        base_url=TEST_URL
+    )
 
 
 @pytest.fixture(scope="session")

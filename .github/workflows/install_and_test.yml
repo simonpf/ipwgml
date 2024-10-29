@@ -27,4 +27,4 @@ jobs:
         pip install -e .[complete]
     - name: Run tests with pytest
       run: |
-         HDF5_USE_FILE_LOCKING=FALSE python -m pytest --cov=pytorch_retrieve tests/ --durations=0
+         HDF5_USE_FILE_LOCKING=FALSE python -m pytest --cov=ipwgml tests/ --durations=0
