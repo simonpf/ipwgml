@@ -85,3 +85,12 @@ def test_download_files_spr_gmi_evaluation(spr_gmi_evaluation):
     # assert len(files) == 1
     files = list((ds_path / "target").glob("*.nc"))
     assert len(files) == 1
+
+
+def test_download_spr_gmi_dataset(spr_gmi_on_swath_tabular_train_dataset):
+    """
+    Ensure that download dataset function
+    """
+    files = spr_gmi_on_swath_tabular_train_dataset
+    assert len(files["gmi"]) == 1
+    assert len(files["target"]) == 1

@@ -10,7 +10,7 @@ from contextlib import contextmanager
 import logging
 import multiprocessing
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 import re
 
 import click
@@ -95,7 +95,7 @@ def download_files(
     progress_bar: bool = True,
     retries: int = 3,
     base_url: Optional[str] = None,
-) -> None:
+) -> List[str]:
     """
     Download files using multiple threads.
 
@@ -106,6 +106,9 @@ def download_files(
         retries: The number of retries to perform for failed files.
         base_url: Optional base URL to use for the data download that will overwrite the
              globally defined default base URL.
+
+    Return:
+        A list of the downloaded files.
     """
     if base_url is None:
         base_url = BASE_URL
@@ -168,6 +171,8 @@ def download_files(
             failed,
         )
 
+    return [fle for fle in files if fle not in failed]
+
 
 def download_missing(
     dataset: str,
@@ -191,7 +196,58 @@ def download_missing(
     )
     remote_files = set(list_files(dataset, base_url=base_url))
     missing = remote_files - local_files
-    download_files(missing, destination, base_url=base_url, progress_bar=progress_bar)
+
+    downloaded = download_files(missing, destination, base_url=base_url, progress_bar=progress_bar)
+    return [destination / fle for fle in downloaded]
+
+
+def download_dataset(
+        dataset_name: str,
+        reference_sensor: str,
+        input_data: Union[str, List[str]],
+        split: str,
+        geometry: str,
+        format: str,
+        base_url: Optional[str] = None
+) -> Dict[str, List[Path]]:
+    """
+    Download IPWGML dataset and return list of local files.
+
+    Args:
+        dataset_name: The IPWGML dataset to download.
+        reference_sensor: The reference sensor of the dataset.
+        input_data: The input data sources for which to download the data.
+        split: Which split of the data to download.
+        geometry: For which retrieval geometry to download the data.
+        format: Which data format to download.
+        base_url: The URL from which to download the data.
+
+    Return:
+        A dictionary listing locally available files for each input data
+        source and the target data.
+    """
+    ipwgml_path = config.get_data_path()
+    dataset = f"spr/{reference_sensor}/{split}/{geometry}/{format}/"
+
+    download_missing(
+        dataset + "target",
+        ipwgml_path,
+        progress_bar=True,
+        base_url=base_url
+    )
+    paths = {
+        "target": [ipwgml_path / fle for fle in list_files(dataset + "target")]
+    }
+
+    if isinstance(input_data, str):
+        input_data = [input_data]
+    for inpt in input_data:
+        download_missing(dataset + inpt, ipwgml_path, progress_bar=True)
+        paths[inpt] = list_files(dataset + inpt)
+        paths[inpt] = [ipwgml_path / fle for fle in list_files(dataset + inpt)]
+
+    return paths
+
 
 
 @click.command()
