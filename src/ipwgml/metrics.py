@@ -182,7 +182,8 @@ class ValidFraction(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'valid_fraction' containing the
             fraction of valid retrievals.
         """
-        valid_fraction = 1.0 - self.invalid / self.counts
+        with np.errstate(invalid="ignore"):
+            valid_fraction = 1.0 - self.invalid / self.counts
         valid_fraction = xr.Dataset({"valid_fraction": valid_fraction[0]})
         valid_fraction.valid_fraction.attrs["full_name"] = "Valid fraction"
         valid_fraction.valid_fraction.attrs["unit"] = ""
@@ -243,10 +244,11 @@ class Bias(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'mse' containing the
             MSE for the assessed results.
         """
-        if self.relative:
-            bias = 100.0 * (self.x_sum - self.y_sum) / self.y_sum
-        else:
-            bias = (self.x_sum - self.y_sum) / self.counts
+        with np.errstate(invalid="ignore"):
+            if self.relative:
+                bias = 100.0 * (self.x_sum - self.y_sum) / self.y_sum
+            else:
+                bias = (self.x_sum - self.y_sum) / self.counts
 
         bias = xr.Dataset({"bias": bias[0]})
         bias.bias.attrs["full_name"] = "Bias"
@@ -299,7 +301,8 @@ class MAE(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'mae' containing
             the MAE for all assessed estimates.
         """
-        mae = xr.Dataset({"mae": (self.tot_abs_error / self.counts)[0]})
+        with np.errstate(invalid="ignore"):
+            mae = xr.Dataset({"mae": (self.tot_abs_error / self.counts)[0]})
         mae.mae.attrs["full_name"] = "MAE"
         mae.mae.attrs["unit"] = "mm h^{-1}"
         return mae
@@ -347,10 +350,11 @@ class SMAPE(QuantificationMetric):
         target = target[valid]
 
         with self.lock:
-            self.tot_rel_error += (
-                np.abs(pred - target) / (0.5 * (np.abs(pred) + np.abs(target)))
-            ).sum()
-            self.counts += valid.sum()
+            with np.errstate(invalid='ignore'):
+                self.tot_rel_error += (
+                    np.abs(pred - target) / (0.5 * (np.abs(pred) + np.abs(target)))
+                ).sum()
+                self.counts += valid.sum()
 
     def compute(self) -> xr.Dataset:
         """
@@ -361,7 +365,8 @@ class SMAPE(QuantificationMetric):
             the SMAPE calculated over all results passed to this metric object.
 
         """
-        smape = xr.Dataset({"smape": 100.0 * (self.tot_rel_error / self.counts)[0]})
+        with np.errstate(invalid='ignore'):
+            smape = xr.Dataset({"smape": 100.0 * (self.tot_rel_error / self.counts)[0]})
         smape.smape.attrs["full_name"] = f"SMAPE$_{{{self.threshold:.2}}}$"
         smape.smape.attrs["unit"] = "\%"
         return smape
@@ -413,7 +418,8 @@ class MSE(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'mse' representing
             the MSE calculated over all results passed to this metric object.
         """
-        mse = xr.Dataset({"mse": (self.tot_sq_error / self.counts)[0]})
+        with np.errstate(invalid='ignore'):
+            mse = xr.Dataset({"mse": (self.tot_sq_error / self.counts)[0]})
         mse.mse.attrs["full_name"] = "MSE"
         mse.mse.attrs["unit"] = "(mm h^{-1})^2"
         return mse
@@ -480,17 +486,16 @@ class CorrelationCoef(QuantificationMetric):
             An xarray.Dataset containing a single, scalar variable 'bias' or 'bias_{name}'.
 
         """
-        x_mean = self.x_sum / self.counts
-        x2_mean = self.x2_sum / self.counts
-        x_sigma = np.sqrt(x2_mean - x_mean**2)
+        with np.errstate(invalid='ignore'):
+            x_mean = self.x_sum / self.counts
+            x2_mean = self.x2_sum / self.counts
+            x_sigma = np.sqrt(x2_mean - x_mean**2)
+            y_mean = self.y_sum / self.counts
+            y2_mean = self.y2_sum / self.counts
+            y_sigma = np.sqrt(y2_mean - y_mean**2)
+            xy_mean = self.xy_sum / self.counts
+            corr = (xy_mean - x_mean * y_mean) / (x_sigma * y_sigma)
 
-        y_mean = self.y_sum / self.counts
-        y2_mean = self.y2_sum / self.counts
-        y_sigma = np.sqrt(y2_mean - y_mean**2)
-
-        xy_mean = self.xy_sum / self.counts
-
-        corr = (xy_mean - x_mean * y_mean) / (x_sigma * y_sigma)
         corr = xr.Dataset({"correlation_coef": corr[0]})
         corr.correlation_coef.attrs["full_name"] = "Correlation coeff."
         corr.correlation_coef.attrs["unit"] = ""
@@ -633,36 +638,38 @@ class SpectralCoherence(QuantificationMetric):
         counts = self.counts
         N = self.coeffs_diff_sum2.shape[0]
 
-        sigma_target = w_target_s2 / counts - (w_target_s / counts) ** 2
-        sigma_pred = w_pred_s2 / counts - (w_pred_s / counts) ** 2
-        target_mean = w_target_s / counts
-        pred_mean = w_pred_s / counts
-        targetpred_mean = w_targetpred_s / counts
-        cc = (
-            (targetpred_mean - target_mean * pred_mean)
-            / (np.sqrt(sigma_target) * np.sqrt(sigma_pred))
-        ).real
-        co = np.abs(w_targetpred_s) / (np.sqrt(w_target_s2) * np.sqrt(w_pred_s2))
-        co = co.real
 
-        n_y = 0.5 * np.arange(sigma_target.shape[0])
-        n_x = 0.5 * np.arange(sigma_target.shape[1])
-        n = np.sqrt(n_x.reshape(1, -1) ** 2 + n_y.reshape(-1, 1) ** 2)
-        bins = np.arange(min(n_y.max(), n_x.max()) + 1) - 0.5
-        counts, _ = np.histogram(n, bins)
+        with np.errstate(invalid="ignore"):
+            sigma_target = w_target_s2 / counts - (w_target_s / counts) ** 2
+            sigma_pred = w_pred_s2 / counts - (w_pred_s / counts) ** 2
+            target_mean = w_target_s / counts
+            pred_mean = w_pred_s / counts
+            targetpred_mean = w_targetpred_s / counts
+            cc = (
+                (targetpred_mean - target_mean * pred_mean)
+                / (np.sqrt(sigma_target) * np.sqrt(sigma_pred))
+            ).real
+            co = np.abs(w_targetpred_s) / (np.sqrt(w_target_s2) * np.sqrt(w_pred_s2))
+            co = co.real
 
-        corr_coeffs, _ = np.histogram(n, bins=bins, weights=cc)
-        corr_coeffs /= counts
-        coherence, _ = np.histogram(n, bins=bins, weights=co)
-        coherence /= counts
-        energy_pred, _ = np.histogram(n, weights=w_pred_s2, bins=bins)
-        energy_target, _ = np.histogram(n, weights=w_target_s2, bins=bins)
-        se, _ = np.histogram(n, weights=w_d_s2 / self.counts, bins=bins)
+            n_y = 0.5 * np.arange(sigma_target.shape[0])
+            n_x = 0.5 * np.arange(sigma_target.shape[1])
+            n = np.sqrt(n_x.reshape(1, -1) ** 2 + n_y.reshape(-1, 1) ** 2)
+            bins = np.arange(min(n_y.max(), n_x.max()) + 1) - 0.5
+            counts, _ = np.histogram(n, bins)
 
-        ns = 1 - (se / energy_target)
-        mse = se / counts
-        n = 0.5 * (bins[1:] + bins[:-1])
-        scales = 0.5 * (N - 1) * self.scale / n
+            corr_coeffs, _ = np.histogram(n, bins=bins, weights=cc)
+            corr_coeffs /= counts
+            coherence, _ = np.histogram(n, bins=bins, weights=co)
+            coherence /= counts
+            energy_pred, _ = np.histogram(n, weights=w_pred_s2, bins=bins)
+            energy_target, _ = np.histogram(n, weights=w_target_s2, bins=bins)
+            se, _ = np.histogram(n, weights=w_d_s2 / self.counts, bins=bins)
+
+            ns = 1 - (se / energy_target)
+            mse = se / counts
+            n = 0.5 * (bins[1:] + bins[:-1])
+            scales = 0.5 * (N - 1) * self.scale / n
 
         inds = np.argsort(scales[1:])
         resolved = np.where(coherence[1:][inds] > np.sqrt(1 / 2))[0]
@@ -683,6 +690,56 @@ class SpectralCoherence(QuantificationMetric):
         results.effective_resolution.attrs["full_name"] = "Effective resolution"
         results.effective_resolution.attrs["unit"] = r"^\circ"
         return results
+
+
+class Histogram(QuantificationMetric):
+    """
+    Calculates a 2D histogram or retrieved and reference precipitation.
+    """
+
+    def __init__(
+            self,
+            bins: np.ndarray
+    ):
+        self.bins = bins
+        n_bins = bins.size - 1
+        super().__init__(
+            buffers={
+                "counts": ((n_bins,) * 2, np.float64),
+            }
+        )
+
+    def update(self, prediction: np.ndarray, target: np.ndarray) -> None:
+        """
+        Update metric values with given prediction.
+
+        Args:
+             prediction: An np.ndarray containing the predicted values.
+             target: An np.ndarray containing the reference values.
+        """
+        pred = prediction
+        valid = np.isfinite(target)
+        pred = pred[valid]
+        target = target[valid]
+
+        with self.lock:
+            self.counts += np.histogram2d(target, pred, bins=(self.bins, self.bins))[0]
+
+    def compute(self) -> xr.Dataset:
+        """
+        Calculate the MSE for all results passed to this metric object.
+
+        Return:
+            An xarray.Dataset containing a single, scalar variable 'mse' representing
+            the MSE calculated over all results passed to this metric object.
+        """
+        hist = xr.Dataset({
+            "bins": (("bins",), self.bins),
+            "counts": (("y", "x"), self.counts)
+        })
+        hist.counts.attrs["full_name"] = "2D Histogram"
+        hist.counts.attrs["unit"] = ""
+        return hist
 
 
 class FAR(DetectionMetric):
@@ -722,7 +779,8 @@ class FAR(DetectionMetric):
             An 'xarray.Dataset' containing the false alarm rate for the
             evaluated retrieval.
         """
-        far = self.n_false_positive / self.n_positive
+        with np.errstate(invalid="ignore"):
+            far = self.n_false_positive / self.n_positive
         results = xr.Dataset(
             {
                 "far": far[0],
@@ -770,7 +828,8 @@ class POD(DetectionMetric):
             An 'xarray.Dataset' containing the probability of detection for
             the evaluated retrieval.
         """
-        pod = self.n_true_positive / self.n_true
+        with np.errstate(invalid="ignore"):
+            pod = self.n_true_positive / self.n_true
         results = xr.Dataset(
             {
                 "pod": pod[0],
@@ -823,8 +882,9 @@ class HSS(DetectionMetric):
         n_false = self.n_fp + self.n_tn
         n_tot = n_pos + n_neg
 
-        standard = n_pos / n_tot * n_true / n_tot + n_neg / n_tot * n_false / n_tot
-        hss = ((self.n_tp + self.n_tn) / n_tot - standard) / (1.0 - standard)
+        with np.errstate(invalid="ignore"):
+            standard = n_pos / n_tot * n_true / n_tot + n_neg / n_tot * n_false / n_tot
+            hss = ((self.n_tp + self.n_tn) / n_tot - standard) / (1.0 - standard)
 
         results = xr.Dataset(
             {
@@ -901,8 +961,9 @@ class PRCurve(ProbabilisticDetectionMetric):
             An 'xarray.Dataset' containing the the precision and recall values for all
             assessed threshold values as well as the area under the PR-curve.
         """
-        precision = self.n_tp / (self.n_tp + self.n_fp)
-        recall = self.n_tp / self.n_t
+        with np.errstate(invalid="ignore"):
+            precision = self.n_tp / (self.n_tp + self.n_fp)
+            recall = self.n_tp / self.n_t
 
         valid = (self.n_tp + self.n_fp) > 0
 
